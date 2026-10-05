@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
-  Users, CheckCircle2, XCircle, AlertTriangle, Shield, Search, QrCode, 
-  Calendar, FileText, Settings, LogIn, LogOut, RefreshCw, Plus, Edit, 
-  ChevronRight, BarChart3, AlertCircle, Phone, User, Home, Database, Filter
+  Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
+  Home, RefreshCw, CheckCircle2, AlertCircle
 } from 'lucide-react';
 
 // --- INITIAL DUMMY DATA ---
@@ -25,7 +24,6 @@ export default function App() {
   const [students, setStudents] = useState(INITIAL_STUDENTS);
   const [attendance, setAttendance] = useState(INITIAL_ATTENDANCE);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [adminId, setAdminId] = useState('');
   const [adminPass, setAdminPass] = useState('');
@@ -33,6 +31,82 @@ export default function App() {
 
   // Selected Class for Manual Attendance
   const [selectedClass, setSelectedClass] = useState('5 Bestari');
+
+  // Google Sheets Live Sync State
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
+
+  // CSV Parser Helper
+  const parseCSV = (csvText) => {
+    const lines = csvText.split('\n').filter(line => line.trim() !== '');
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const parsedStudents = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      // Split by comma ignoring commas inside quotes
+      const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"\vert{}"$/g, ''));
+      if (values.length >= 2) {
+        parsedStudents.push({
+          id: values[0] || `SB2026${String(i).padStart(4, '0')}`,
+          name: values[1] || 'TANPA NAMA',
+          gender: values[2] || 'L',
+          year: values[3] || '1',
+          class: values[4] || '1 Bestari',
+          guardian: values[5] || '-',
+          phone: values[6] || '-',
+          status: 'Active',
+          qr_token: `STU-2026-${String(i).padStart(4, '0')}`
+        });
+      }
+    }
+    return parsedStudents;
+  };
+
+  // Live Sync Function
+  const handleGoogleSheetsSync = async () => {
+    if (!sheetUrl.trim()) {
+      setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
+      return;
+    }
+
+    if (!sheetUrl.includes('output=csv')) {
+      setSyncStatus({ 
+        loading: false, 
+        success: false, 
+        message: 'Pautan tidak sah! Pastikan pautan tamat dengan "output=csv" (File -> Share -> Publish to Web -> Choose CSV).' 
+      });
+      return;
+    }
+
+    setSyncStatus({ loading: true, success: null, message: 'Memuat turun data dari Google Sheets...' });
+
+    try {
+      const response = await fetch(sheetUrl);
+      if (!response.ok) throw new Error('Gagal memuat turun fail CSV.');
+      const csvData = await response.text();
+      
+      const importedStudents = parseCSV(csvData);
+      
+      if (importedStudents.length === 0) {
+        setSyncStatus({ loading: false, success: false, message: 'Tiada rekod murid ditemui dalam helaian Google Sheets tersebut.' });
+      } else {
+        setStudents(importedStudents);
+        setSyncStatus({ 
+          loading: false, 
+          success: true, 
+          message: `Berjaya! ${importedStudents.length} rekod murid telah dikemaskini dari Google Sheets.` 
+        });
+      }
+    } catch (err) {
+      setSyncStatus({ 
+        loading: false, 
+        success: false, 
+        message: 'Ralat semasa sambungan. Pastikan helaian Google Sheets telah di-Publish to Web sebagai CSV.' 
+      });
+    }
+  };
 
   // Login Handler
   const handleAdminLogin = (e) => {
@@ -53,7 +127,7 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  // Quick Attendance Status Toggle
+  // Attendance Toggle
   const toggleAttendance = (studentId, status) => {
     const today = '2026-10-05';
     setAttendance(prev => {
@@ -76,6 +150,9 @@ export default function App() {
       return [...rest, ...updated];
     });
   };
+
+  // Dynamic Class Options List based on current students
+  const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
@@ -134,7 +211,7 @@ export default function App() {
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'attendance' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <Calendar className="w-4 h-4" />
-            <span>Kehadiran Class</span>
+            <span>Kehadiran Kelas</span>
           </button>
 
           <button 
@@ -142,7 +219,7 @@ export default function App() {
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'students' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <Users className="w-4 h-4" />
-            <span>Direktori Murid</span>
+            <span>Direktori Murid ({students.length})</span>
           </button>
 
           {isAdmin && (
@@ -194,7 +271,7 @@ export default function App() {
                   <h3 className="font-semibold text-slate-800">Senarai Ringkas Murid</h3>
                   <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
                   {students.map(s => {
                     const att = attendance.find(a => a.student_id === s.id);
                     return (
@@ -233,8 +310,9 @@ export default function App() {
                     onChange={e => setSelectedClass(e.target.value)}
                     className="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg px-3 py-2 font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                   >
-                    <option value="5 Bestari">5 Bestari</option>
-                    <option value="4 Cemerlang">4 Cemerlang</option>
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
 
                   <button 
@@ -300,7 +378,7 @@ export default function App() {
           {activeTab === 'students' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-800">Direktori Murid</h2>
+                <h2 className="text-xl font-bold text-slate-800">Direktori Murid ({students.length})</h2>
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                   <input 
@@ -346,18 +424,38 @@ export default function App() {
               </div>
 
               <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <h3 className="font-bold text-slate-800 text-lg">Google Sheets Sync (1-Click Live Sync)</h3>
-                <p className="text-sm text-slate-600">Pautkan helaian Google Sheets anda untuk mengemaskini maklumat murid secara terus tanpa memuat naik fail CSV manual.</p>
-                <div className="flex space-x-3">
+                <h3 className="font-bold text-slate-800 text-lg">Google Sheets Live Sync</h3>
+                <p className="text-sm text-slate-600">
+                  Tampal pautan <strong>Publish to Web (CSV)</strong> Google Sheets anda di bawah untuk menarik rekod murid terkini secara automatik.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input 
                     type="text" 
-                    placeholder="Tampal Pautan Terbitan CSV Google Sheets di sini..."
+                    value={sheetUrl}
+                    onChange={e => setSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
                     className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                   />
-                  <button className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-                    Sync Sekarang
+                  <button 
+                    onClick={handleGoogleSheetsSync}
+                    disabled={syncStatus.loading}
+                    className="flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-sm font-semibold px-5 py-2 rounded-lg transition shadow-sm"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${syncStatus.loading ? 'animate-spin' : ''}`} />
+                    <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Sekarang'}</span>
                   </button>
                 </div>
+
+                {/* Sync Feedback Message */}
+                {syncStatus.message && (
+                  <div className={`p-4 rounded-lg text-xs font-medium flex items-center space-x-2 ${
+                    syncStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {syncStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                    <span>{syncStatus.message}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
