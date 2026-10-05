@@ -18,17 +18,62 @@ const INITIAL_ATTENDANCE = [
   { student_id: 'SB20260003', date: '2026-10-05', status: 'Bersebab', method: 'Manual' }
 ];
 
+// CSV Parser Helper Function (Diisytiharkan di luar komponen supaya stabil)
+const parseCSV = (csvText) => {
+  if (!csvText) return [];
+  const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
+  if (lines.length < 1) return [];
+
+  const parsedStudents = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"\vert{}"$/g, ''));
+    
+    const cleanValues = values.filter(v => v !== '');
+    if (cleanValues.length < 2) continue;
+
+    const firstCol = cleanValues[0] || '';
+    const secondCol = cleanValues[1] || '';
+
+    // Abaikan baris tajuk / header
+    if (
+      firstCol.toLowerCase().includes('no id') || 
+      firstCol.toLowerCase().includes('id murid') ||
+      secondCol.toLowerCase().includes('nama murid')
+    ) {
+      continue;
+    }
+
+    parsedStudents.push({
+      id: cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`,
+      name: cleanValues[1] || 'TANPA NAMA',
+      gender: cleanValues[2] || 'L',
+      year: cleanValues[3] || '1',
+      class: cleanValues[4] || '1 Bestari',
+      guardian: cleanValues[5] || '-',
+      phone: cleanValues[6] || '-',
+      status: 'Active',
+      qr_token: `STU-2026-${String(i).padStart(4, '0')}`
+    });
+  }
+  return parsedStudents;
+};
+
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // 1. Dapatkan data murid dari LocalStorage jika ada
+  // Load students from LocalStorage if available
   const [students, setStudents] = useState(() => {
-    const saved = localStorage.getItem('sksb_students');
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+    try {
+      const saved = localStorage.getItem('sksb_students');
+      return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+    } catch (e) {
+      return INITIAL_STUDENTS;
+    }
   });
 
-  // 2. Dapatkan URL Google Sheets dari LocalStorage jika ada
+  // Load Sheet URL from LocalStorage if available
   const [sheetUrl, setSheetUrl] = useState(() => {
     return localStorage.getItem('sksb_sheet_url') || '';
   });
@@ -39,10 +84,11 @@ export default function App() {
   const [adminId, setAdminId] = useState('');
   const [adminPass, setAdminPass] = useState('');
   const [loginError, setLoginError] = useState('');
+
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
 
-  // 3. AUTO-SYNC: Tarik data automatik setiap kali laman web dibuka / refresh
+  // Auto Sync dari Google Sheets apabila web dibuka
   useEffect(() => {
     const savedUrl = localStorage.getItem('sksb_sheet_url');
     if (savedUrl) {
@@ -55,58 +101,39 @@ export default function App() {
             localStorage.setItem('sksb_students', JSON.stringify(imported));
           }
         })
-        .catch(err => console.error("Auto sync gagal:", err));
+        .catch(err => console.error("Auto sync error:", err));
     }
   }, []);
 
-  // CSV Parser Helper
-  // Updated CSV Parser Helper with Header Detection
-  const parseCSV = (csvText) => {
-    const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
-    if (lines.length < 1) return [];
-
-    const parsedStudents = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"\vert{}"$/g, ''));
-      
-      // Skip empty or shifted lines
-      const cleanValues = values.filter(v => v !== '');
-      if (cleanValues.length < 2) continue;
-
-      const firstCol = cleanValues[0] || '';
-      const secondCol = cleanValues[1] || '';
-
-      // Skip row if it contains header keywords like "No ID", "ID", or "Nama Murid"
-      if (
-        firstCol.toLowerCase().includes('no id') || 
-        firstCol.toLowerCase().includes('id murid') ||
-        secondCol.toLowerCase().includes('nama murid')
-      ) {
-        continue;
-      }
-
-      parsedStudents.push({
-        id: cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`,
-        name: cleanValues[1] || 'TANPA NAMA',
-        gender: cleanValues[2] || 'L',
-        year: cleanValues[3] || '1',
-        class: cleanValues[4] || '1 Bestari',
-        guardian: cleanValues[5] || '-',
-        phone: cleanValues[6] || '-',
-        status: 'Active',
-        qr_token: `STU-2026-${String(i).padStart(4, '0')}`
-      });
+  // Live Sync Manual
+  const handleGoogleSheetsSync = async () => {
+    if (!sheetUrl.trim()) {
+      setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
+      return;
     }
-    return parsedStudents;
-  };
 
-  // Live Sync Function
-  if (importedStudents.length === 0) {
+    if (!sheetUrl.includes('output=csv')) {
+      setSyncStatus({ 
+        loading: false, 
+        success: false, 
+        message: 'Pautan tidak sah! Pastikan pautan tamat dengan "output=csv".' 
+      });
+      return;
+    }
+
+    setSyncStatus({ loading: true, success: null, message: 'Memuat turun data dari Google Sheets...' });
+
+    try {
+      const response = await fetch(sheetUrl);
+      if (!response.ok) throw new Error('Gagal memuat turun fail CSV.');
+      const csvData = await response.text();
+      
+      const importedStudents = parseCSV(csvData);
+      
+      if (importedStudents.length === 0) {
         setSyncStatus({ loading: false, success: false, message: 'Tiada rekod murid ditemui dalam helaian Google Sheets tersebut.' });
       } else {
         setStudents(importedStudents);
-        // SIMPAN KE LOCALSTORAGE SUPAYA TIDAK HILANG BILA REFRESH
         localStorage.setItem('sksb_students', JSON.stringify(importedStudents));
         localStorage.setItem('sksb_sheet_url', sheetUrl);
 
@@ -116,8 +143,15 @@ export default function App() {
           message: `Berjaya! ${importedStudents.length} rekod murid telah dikemaskini dari Google Sheets.` 
         });
       }
+    } catch (err) {
+      setSyncStatus({ 
+        loading: false, 
+        success: false, 
+        message: 'Ralat semasa sambungan. Pastikan helaian Google Sheets telah di-Publish to Web sebagai CSV.' 
+      });
+    }
+  };
 
-  // Login Handler
   const handleAdminLogin = (e) => {
     e.preventDefault();
     if (adminId === 'adminsksb' && adminPass === 'yba3410') {
@@ -136,7 +170,6 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  // Attendance Toggle
   const toggleAttendance = (studentId, status) => {
     const today = '2026-10-05';
     setAttendance(prev => {
@@ -160,7 +193,6 @@ export default function App() {
     });
   };
 
-  // Dynamic Class Options List based on current students
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
   return (
