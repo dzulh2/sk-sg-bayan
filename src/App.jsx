@@ -37,29 +37,43 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
 
   // CSV Parser Helper
+  // Updated CSV Parser Helper with Header Detection
   const parseCSV = (csvText) => {
-    const lines = csvText.split('\n').filter(line => line.trim() !== '');
-    if (lines.length < 2) return [];
+    const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
+    if (lines.length < 1) return [];
 
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const parsedStudents = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      // Split by comma ignoring commas inside quotes
+    for (let i = 0; i < lines.length; i++) {
       const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"\vert{}"$/g, ''));
-      if (values.length >= 2) {
-        parsedStudents.push({
-          id: values[0] || `SB2026${String(i).padStart(4, '0')}`,
-          name: values[1] || 'TANPA NAMA',
-          gender: values[2] || 'L',
-          year: values[3] || '1',
-          class: values[4] || '1 Bestari',
-          guardian: values[5] || '-',
-          phone: values[6] || '-',
-          status: 'Active',
-          qr_token: `STU-2026-${String(i).padStart(4, '0')}`
-        });
+      
+      // Skip empty or shifted lines
+      const cleanValues = values.filter(v => v !== '');
+      if (cleanValues.length < 2) continue;
+
+      const firstCol = cleanValues[0] || '';
+      const secondCol = cleanValues[1] || '';
+
+      // Skip row if it contains header keywords like "No ID", "ID", or "Nama Murid"
+      if (
+        firstCol.toLowerCase().includes('no id') || 
+        firstCol.toLowerCase().includes('id murid') ||
+        secondCol.toLowerCase().includes('nama murid')
+      ) {
+        continue;
       }
+
+      parsedStudents.push({
+        id: cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`,
+        name: cleanValues[1] || 'TANPA NAMA',
+        gender: cleanValues[2] || 'L',
+        year: cleanValues[3] || '1',
+        class: cleanValues[4] || '1 Bestari',
+        guardian: cleanValues[5] || '-',
+        phone: cleanValues[6] || '-',
+        status: 'Active',
+        qr_token: `STU-2026-${String(i).padStart(4, '0')}`
+      });
     }
     return parsedStudents;
   };
