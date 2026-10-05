@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle
@@ -21,20 +21,43 @@ const INITIAL_ATTENDANCE = [
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [students, setStudents] = useState(INITIAL_STUDENTS);
+
+  // 1. Dapatkan data murid dari LocalStorage jika ada
+  const [students, setStudents] = useState(() => {
+    const saved = localStorage.getItem('sksb_students');
+    return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+  });
+
+  // 2. Dapatkan URL Google Sheets dari LocalStorage jika ada
+  const [sheetUrl, setSheetUrl] = useState(() => {
+    return localStorage.getItem('sksb_sheet_url') || '';
+  });
+
   const [attendance, setAttendance] = useState(INITIAL_ATTENDANCE);
   const [searchQuery, setSearchQuery] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [adminId, setAdminId] = useState('');
   const [adminPass, setAdminPass] = useState('');
   const [loginError, setLoginError] = useState('');
-
-  // Selected Class for Manual Attendance
-  const [selectedClass, setSelectedClass] = useState('5 Bestari');
-
-  // Google Sheets Live Sync State
-  const [sheetUrl, setSheetUrl] = useState('');
+  const [selectedClass, setSelectedClass] = useState('1 FAJAR');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
+
+  // 3. AUTO-SYNC: Tarik data automatik setiap kali laman web dibuka / refresh
+  useEffect(() => {
+    const savedUrl = localStorage.getItem('sksb_sheet_url');
+    if (savedUrl) {
+      fetch(savedUrl)
+        .then(res => res.text())
+        .then(csvData => {
+          const imported = parseCSV(csvData);
+          if (imported.length > 0) {
+            setStudents(imported);
+            localStorage.setItem('sksb_students', JSON.stringify(imported));
+          }
+        })
+        .catch(err => console.error("Auto sync gagal:", err));
+    }
+  }, []);
 
   // CSV Parser Helper
   // Updated CSV Parser Helper with Header Detection
@@ -79,48 +102,20 @@ export default function App() {
   };
 
   // Live Sync Function
-  const handleGoogleSheetsSync = async () => {
-    if (!sheetUrl.trim()) {
-      setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
-      return;
-    }
-
-    if (!sheetUrl.includes('output=csv')) {
-      setSyncStatus({ 
-        loading: false, 
-        success: false, 
-        message: 'Pautan tidak sah! Pastikan pautan tamat dengan "output=csv" (File -> Share -> Publish to Web -> Choose CSV).' 
-      });
-      return;
-    }
-
-    setSyncStatus({ loading: true, success: null, message: 'Memuat turun data dari Google Sheets...' });
-
-    try {
-      const response = await fetch(sheetUrl);
-      if (!response.ok) throw new Error('Gagal memuat turun fail CSV.');
-      const csvData = await response.text();
-      
-      const importedStudents = parseCSV(csvData);
-      
-      if (importedStudents.length === 0) {
+  if (importedStudents.length === 0) {
         setSyncStatus({ loading: false, success: false, message: 'Tiada rekod murid ditemui dalam helaian Google Sheets tersebut.' });
       } else {
         setStudents(importedStudents);
+        // SIMPAN KE LOCALSTORAGE SUPAYA TIDAK HILANG BILA REFRESH
+        localStorage.setItem('sksb_students', JSON.stringify(importedStudents));
+        localStorage.setItem('sksb_sheet_url', sheetUrl);
+
         setSyncStatus({ 
           loading: false, 
           success: true, 
           message: `Berjaya! ${importedStudents.length} rekod murid telah dikemaskini dari Google Sheets.` 
         });
       }
-    } catch (err) {
-      setSyncStatus({ 
-        loading: false, 
-        success: false, 
-        message: 'Ralat semasa sambungan. Pastikan helaian Google Sheets telah di-Publish to Web sebagai CSV.' 
-      });
-    }
-  };
 
   // Login Handler
   const handleAdminLogin = (e) => {
