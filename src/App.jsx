@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Mail
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -16,7 +16,7 @@ const INITIAL_ATTENDANCE = [
   { student_id: 'SB20260002', date: '2026-10-06', status: 'Tidak Hadir', method: 'Manual' }
 ];
 
-// CSV Parser Helper
+// CSV Parser Helper Function
 const parseCSV = (csvText) => {
   if (!csvText) return [];
   const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
@@ -98,7 +98,7 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // Auto Sync apabila web dibuka
+  // Auto Sync dari Google Sheets apabila web dibuka
   useEffect(() => {
     const savedUrl = localStorage.getItem('sksb_sheet_url');
     if (savedUrl) {
@@ -187,7 +187,7 @@ export default function App() {
     }
   };
 
-  // Sync Google Sheets
+  // Sync Google Sheets Manual
   const handleGoogleSheetsSync = async () => {
     if (!sheetUrl.trim()) {
       setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
@@ -296,18 +296,21 @@ export default function App() {
       {/* Top Navbar */}
       <header className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print">
         <div className="flex items-center space-x-3">
-          {/* Logo Sekolah di Header */}
-          <img 
-            src="/logo.png" 
-            alt="Logo SK Sungai Bayan" 
-            className="w-8 h-8 object-contain"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-          <div className="bg-blue-600 p-2 rounded-lg header-fallback-icon">
-            <Shield className="w-5 h-5 text-white" />
+          {/* Logo Sekolah Bersaiz Kemas */}
+          <div className="bg-white/10 p-1 rounded-xl border border-white/20 flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="Logo SK Sungai Bayan" 
+              className="w-8 h-8 object-contain"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <Shield className="w-6 h-6 text-blue-400 hidden" />
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-tight">SK SUNGAI BAYAN</h1>
+            <h1 className="font-bold text-lg leading-tight tracking-wide">SK SUNGAI BAYAN</h1>
             <p className="text-xs text-slate-400">System e-Hadir & Sahsiah Murid</p>
           </div>
         </div>
@@ -440,7 +443,6 @@ export default function App() {
                       {/* Card Header Design dengan Logo Sekolah */}
                       <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-amber-400">
                         <div className="flex items-center space-x-2">
-                          {/* Paparan Logo Sekolah PNG */}
                           <img 
                             src="/logo.png" 
                             alt="SK Sungai Bayan" 
@@ -476,7 +478,6 @@ export default function App() {
                             </span>
                           </div>
 
-                          {/* KEMASKINI: Ditukar daripada "Waris" kepada "Emel DELIMA" */}
                           <div className="pt-1 text-[10px] text-slate-600 space-y-0.5 border-t border-slate-200">
                             <p className="truncate max-w-[200px]">
                               <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
