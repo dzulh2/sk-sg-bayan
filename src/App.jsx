@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, Award
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -171,29 +171,41 @@ const [certFilterClass, setCertFilterClass] = useState('Semua');
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
 
-  // QR Scanner Logic
+// QR Scanner Logic (Diperbaiki untuk elak white screen)
   useEffect(() => {
     let scanner = null;
-    if (activeTab === 'scan') {
-      scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
-          formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
-        },
-        false
-      );
+    let timer = null;
 
-      scanner.render(
-        (decodedText) => {
-          handleQrScanned(decodedText);
-        },
-        () => {}
-      );
+    if (activeTab === 'scan') {
+      timer = setTimeout(() => {
+        const qrContainer = document.getElementById("qr-reader");
+        if (qrContainer) {
+          try {
+            scanner = new Html5QrcodeScanner(
+              "qr-reader",
+              { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
+              },
+              false
+            );
+
+            scanner.render(
+              (decodedText) => {
+                handleQrScanned(decodedText);
+              },
+              () => {}
+            );
+          } catch (err) {
+            console.error("Scanner init error:", err);
+          }
+        }
+      }, 150);
     }
 
     return () => {
+      if (timer) clearTimeout(timer);
       if (scanner) {
         scanner.clear().catch(error => console.error("Failed to clear scanner", error));
       }
@@ -379,7 +391,7 @@ const [certFilterClass, setCertFilterClass] = useState('Semua');
     }, 5000);
   };
 
-  const printFilteredStudents = printClassFilter === 'Semua' 
+const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter)
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
@@ -1057,7 +1069,7 @@ const [certFilterClass, setCertFilterClass] = useState('Semua');
                   </div>
                 ))}
               </div>
-              
+
                 <div className="flex items-center space-x-3">
                   <select 
                     value={printClassFilter} 
