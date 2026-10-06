@@ -106,6 +106,7 @@ export default function App() {
   const [dashboardDetailClass, setDashboardDetailClass] = useState('Semua Kelas');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [certFilterClass, setCertFilterClass] = useState('Semua');
+  const [printSubTab, setPrintSubTab] = useState('cards'); // 'cards' atau 'certs'
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
   const [saveMessage, setSaveMessage] = useState('');
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
@@ -925,110 +926,235 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
+  {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
           {activeTab === 'print' && (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 no-print bg-indigo-900 text-white p-6 rounded-2xl shadow-md">
-                <div>
-                  <h2 className="text-2xl font-bold">Penjana Kad Matrik & QR Murid</h2>
-                  <p className="text-indigo-200 text-xs mt-1">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <select 
-                    value={printClassFilter} 
-                    onChange={e => setPrintClassFilter(e.target.value)}
-                    className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
-                  >
-                    <option value="Semua">Semua Kelas ({students.length})</option>
-                    {availableClasses.map(c => (
-                      <option key={c} value={c}>Kelas {c}</option>
-                    ))}
-                  </select>
-
-                  <button 
-                    onClick={() => window.print()} 
-                    className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
-                  >
-                    <Printer className="w-4 h-4" />
-                    <span>Cetak Kad ID (A4)</span>
-                  </button>
-                </div>
+              
+              {/* SUB-NAVIGATION TOGGLE (NO PRINT) */}
+              <div className="flex items-center space-x-2 bg-slate-200 p-1.5 rounded-xl no-print max-w-md">
+                <button 
+                  onClick={() => setPrintSubTab('cards')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
+                    printSubTab === 'cards' 
+                      ? 'bg-indigo-900 text-white shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Kad Matrik & QR Murid
+                </button>
+                <button 
+                  onClick={() => setPrintSubTab('certs')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
+                    printSubTab === 'certs' 
+                      ? 'bg-amber-600 text-white shadow-sm' 
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Sijil Kehadiran 100%
+                </button>
               </div>
 
-              {/* PENJANA SIJIL KEHADIRAN 100% */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 no-print">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center font-bold">
-                      <Award className="w-6 h-6" />
-                    </div>
+              {/* VIEW 1: PENJANA KAD MATRIK & QR MURID */}
+              {printSubTab === 'cards' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 no-print bg-indigo-900 text-white p-6 rounded-2xl shadow-md">
                     <div>
-                      <h3 className="font-bold text-slate-800 text-base">Penjana Sijil Kehadiran 100%</h3>
-                      <p className="text-xs text-slate-500">Cetak sijil penghargaan khas bagi murid yang tidak pernah tidak hadir.</p>
+                      <h2 className="text-2xl font-bold">Penjana Kad Matrik & QR Murid</h2>
+                      <p className="text-indigo-200 text-xs mt-1">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <select 
+                        value={printClassFilter} 
+                        onChange={e => setPrintClassFilter(e.target.value)}
+                        className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
+                      >
+                        <option value="Semua">Semua Kelas ({students.length})</option>
+                        {availableClasses.map(c => (
+                          <option key={c} value={c}>Kelas {c}</option>
+                        ))}
+                      </select>
+
+                      <button 
+                        onClick={() => window.print()} 
+                        className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>Cetak Kad ID ({printFilteredStudents.length})</span>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-3">
-                    <select 
-                      value={certFilterClass} 
-                      onChange={e => setCertFilterClass(e.target.value)}
-                      className="bg-slate-100 text-slate-800 text-xs font-bold px-3 py-2 rounded-lg outline-none border border-slate-300"
-                    >
-                      <option value="Semua">Semua Kelas ({getPerfectAttendanceStudents().length} Murid)</option>
-                      {availableClasses.map(c => (
-                        <option key={c} value={c}>Kelas {c}</option>
-                      ))}
-                    </select>
+                  {/* ID CARDS GRID CONTAINER */}
+                  <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {printFilteredStudents.map(s => {
+                      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
+                      
+                      return (
+                        <div 
+                          key={s.id} 
+                          className="id-card bg-white rounded-2xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
+                          style={{ minHeight: '230px' }}
+                        >
+                          <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-amber-400">
+                            <div className="flex items-center space-x-2">
+                              <img 
+                                src="/logo.png" 
+                                alt="SK Sungai Bayan" 
+                                className="w-7 h-7 object-contain bg-white/10 rounded p-0.5"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                              <div>
+                                <h3 className="font-extrabold text-xs tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
+                                <p className="text-[9px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
+                              </div>
+                            </div>
+                            <span className="text-[10px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black tracking-widest">
+                              2026
+                            </span>
+                          </div>
 
-                    <button 
-                      onClick={() => window.print()} 
-                      className="flex items-center space-x-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
-                    >
-                      <Printer className="w-4 h-4" />
-                      <span>Cetak Sijil (A4)</span>
-                    </button>
+                          <div className="p-4 flex items-center justify-between gap-3 bg-slate-50/50 flex-1">
+                            <div className="space-y-1.5 flex-1">
+                              <div>
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                                <h4 className="font-black text-slate-900 text-sm leading-tight uppercase">{s.name}</h4>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="bg-blue-100 text-blue-900 text-[10px] font-black px-2 py-0.5 rounded border border-blue-300">
+                                  ID: {s.id}
+                                </span>
+                                <span className="bg-emerald-100 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-300">
+                                  KELAS: {s.class}
+                                </span>
+                              </div>
+
+                              <div className="pt-1 text-[10px] text-slate-600 space-y-0.5 border-t border-slate-200">
+                                <p className="truncate max-w-[200px]">
+                                  <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
+                                </p>
+                                <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
+                              </div>
+                            </div>
+
+                            <div className="bg-white p-2 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
+                              <img 
+                                src={qrUrl} 
+                                alt={`QR ${s.id}`} 
+                                className="w-24 h-24 object-contain rounded"
+                              />
+                              <p className="text-[8px] font-mono font-bold text-slate-500 mt-1">{s.id}</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-900 px-4 py-1 flex items-center justify-between text-[8px] text-slate-400">
+                            <span>Kad ID Rasmi Sekolah SK Sungai Bayan</span>
+                            <span className="font-mono text-amber-400">E-HADIR DIGITAL</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* TEMPLATE SIJIL KEHADIRAN 100% (PRINT AREA) */}
-              <div className="hidden print:block space-y-8">
-                {getPerfectAttendanceStudents().map(s => (
-                  <div 
-                    key={`cert-${s.id}`} 
-                    className="w-full h-[98vh] border-8 border-double border-amber-600 p-10 flex flex-col justify-between text-center bg-white relative page-break-after-always"
-                  >
-                    <div className="space-y-4">
-                      <img src="/logo.png" alt="Logo Sekolah" className="w-20 h-20 mx-auto object-contain" />
-                      <h1 className="text-3xl font-extrabold text-slate-900 uppercase tracking-widest">SEKOLAH KEBANGSAAN SUNGAI BAYAN</h1>
-                      <p className="text-sm font-semibold text-slate-600 uppercase">Sijil Penghargaan Kehadiran Penuh</p>
-                      <div className="w-32 h-1 bg-amber-500 mx-auto my-4"></div>
+              {/* VIEW 2: PENJANA SIJIL KEHADIRAN 100% */}
+              {printSubTab === 'certs' && (
+                <div className="space-y-6">
+                  <div className="bg-amber-700 text-white p-6 rounded-2xl shadow-md no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center font-bold">
+                        <Award className="w-7 h-7 text-amber-200" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold">Penjana Sijil Kehadiran 100%</h2>
+                        <p className="text-amber-100 text-xs mt-1">Cetak sijil penghargaan khas bagi murid yang tidak pernah tidak hadir.</p>
+                      </div>
                     </div>
 
-                    <div className="space-y-6 my-auto">
-                      <p className="text-base text-slate-700">Dengan ini diperakui bahawa</p>
-                      <h2 className="text-3xl font-black text-amber-700 uppercase underline decoration-amber-400 decoration-2">{s.name}</h2>
-                      <p className="text-sm font-bold text-slate-800">NO ID: {s.id} &nbsp;|&nbsp; KELAS: {s.class}</p>
-                      <p className="text-base text-slate-700 max-w-2xl mx-auto leading-relaxed">
-                        Telah mencapai rekod <strong>Kehadiran 100% (Penuh)</strong> bagi sesi persekolahan 2026 atas komitmen dan disiplin cemerlang yang ditunjukkan.
-                      </p>
-                    </div>
+                    <div className="flex items-center space-x-3">
+                      <select 
+                        value={certFilterClass} 
+                        onChange={e => setCertFilterClass(e.target.value)}
+                        className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
+                      >
+                        <option value="Semua">Semua Kelas ({getPerfectAttendanceStudents().length} Murid)</option>
+                        {availableClasses.map(c => (
+                          <option key={c} value={c}>Kelas {c}</option>
+                        ))}
+                      </select>
 
-                    <div className="flex items-end justify-between pt-12 text-xs text-slate-700 border-t border-slate-300">
-                      <div className="text-left">
-                        <p className="font-bold">Tarikh: {selectedDate}</p>
-                        <p>SK Sungai Bayan, HEM e-Hadir</p>
-                      </div>
-                      <div className="text-center w-48">
-                        <div className="border-b border-slate-800 mb-1 h-12"></div>
-                        <p className="font-bold uppercase">Guru Besar / PK HEM</p>
-                        <p className="text-[10px]">SK Sungai Bayan</p>
-                      </div>
+                      <button 
+                        onClick={() => window.print()} 
+                        className="flex items-center space-x-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>Cetak Sijil ({getPerfectAttendanceStudents().length})</span>
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* PREVIEW CONTAINER ON SCREEN */}
+                  <div className="bg-slate-100 p-6 rounded-2xl border border-slate-300 no-print space-y-4">
+                    <p className="text-xs font-bold text-slate-600 uppercase">Pratonton Sijil ({getPerfectAttendanceStudents().length} Murid Ditemui)</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {getPerfectAttendanceStudents().map(s => (
+                        <div key={`preview-${s.id}`} className="bg-white p-4 rounded-xl border border-amber-300 shadow-sm flex items-center justify-between">
+                          <div>
+                            <h4 className="font-bold text-slate-900 text-sm">{s.name}</h4>
+                            <p className="text-xs text-slate-500">ID: {s.id} • Kelas: {s.class}</p>
+                          </div>
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded-full">
+                            Kehadiran 100%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* TEMPLATE SIJIL KEHADIRAN 100% (PRINT AREA ONLY) */}
+                  <div className="hidden print:block space-y-8">
+                    {getPerfectAttendanceStudents().map(s => (
+                      <div 
+                        key={`cert-${s.id}`} 
+                        className="w-full h-[98vh] border-8 border-double border-amber-600 p-10 flex flex-col justify-between text-center bg-white relative page-break-after-always"
+                      >
+                        <div className="space-y-4">
+                          <img src="/logo.png" alt="Logo Sekolah" className="w-20 h-20 mx-auto object-contain" />
+                          <h1 className="text-3xl font-extrabold text-slate-900 uppercase tracking-widest">SEKOLAH KEBANGSAAN SUNGAI BAYAN</h1>
+                          <p className="text-sm font-semibold text-slate-600 uppercase">Sijil Penghargaan Kehadiran Penuh</p>
+                          <div className="w-32 h-1 bg-amber-500 mx-auto my-4"></div>
+                        </div>
+
+                        <div className="space-y-6 my-auto">
+                          <p className="text-base text-slate-700">Dengan ini diperakui bahawa</p>
+                          <h2 className="text-3xl font-black text-amber-700 uppercase underline decoration-amber-400 decoration-2">{s.name}</h2>
+                          <p className="text-sm font-bold text-slate-800">NO ID: {s.id} &nbsp;|&nbsp; KELAS: {s.class}</p>
+                          <p className="text-base text-slate-700 max-w-2xl mx-auto leading-relaxed">
+                            Telah mencapai rekod <strong>Kehadiran 100% (Penuh)</strong> bagi sesi persekolahan 2026 atas komitmen dan disiplin cemerlang yang ditunjukkan.
+                          </p>
+                        </div>
+
+                        <div className="flex items-end justify-between pt-12 text-xs text-slate-700 border-t border-slate-300">
+                          <div className="text-left">
+                            <p className="font-bold">Tarikh: {selectedDate}</p>
+                            <p>SK Sungai Bayan, HEM e-Hadir</p>
+                          </div>
+                          <div className="text-center w-48">
+                            <div className="border-b border-slate-800 mb-1 h-12"></div>
+                            <p className="font-bold uppercase">Guru Besar / PK HEM</p>
+                            <p className="text-[10px]">SK Sungai Bayan</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
 
               {/* ID CARDS GRID CONTAINER */}
               <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-6">
