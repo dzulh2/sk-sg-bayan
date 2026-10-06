@@ -458,7 +458,7 @@ export default function App() {
   };
 
   const getPerfectAttendanceStudents = () => {
-    const targetStudents = certFilterClass === 'Semua' 
+    const targetStudents = (certFilterClass === 'Semua' || !certFilterClass)
       ? students 
       : students.filter(s => s.class === certFilterClass);
 
@@ -477,6 +477,7 @@ export default function App() {
           header, nav, .no-print { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
           .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 10px !important; }
+          .cert-print-area { display: block !important; }
           .id-card { page-break-inside: avoid; break-inside: avoid; border: 2px solid #1e293b !important; box-shadow: none !important; }
         }
       `}</style>
@@ -553,7 +554,7 @@ export default function App() {
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'print' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <CreditCard className="w-4 h-4 text-indigo-600" />
-            <span>Cetak Kad ID / QR</span>
+            <span>Cetak Kad ID / Sijil</span>
           </button>
 
           <button 
@@ -926,7 +927,7 @@ export default function App() {
             </div>
           )}
 
-  {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
+          {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
           {activeTab === 'print' && (
             <div className="space-y-6">
               
@@ -1079,7 +1080,7 @@ export default function App() {
                         onChange={e => setCertFilterClass(e.target.value)}
                         className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
                       >
-                        <option value="Semua">Semua Kelas ({getPerfectAttendanceStudents().length} Murid)</option>
+                        <option value="Semua">Semua Kelas ({students.length})</option>
                         {availableClasses.map(c => (
                           <option key={c} value={c}>Kelas {c}</option>
                         ))}
@@ -1114,7 +1115,7 @@ export default function App() {
                   </div>
 
                   {/* TEMPLATE SIJIL KEHADIRAN 100% (PRINT AREA ONLY) */}
-                  <div className="hidden print:block space-y-8">
+                  <div className="cert-print-area hidden print:block space-y-8">
                     {getPerfectAttendanceStudents().map(s => (
                       <div 
                         key={`cert-${s.id}`} 
@@ -1153,82 +1154,6 @@ export default function App() {
                 </div>
               )}
 
-            </div>
-          )}
-
-              {/* ID CARDS GRID CONTAINER */}
-              <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-6">
-                {printFilteredStudents.map(s => {
-                  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
-                  
-                  return (
-                    <div 
-                      key={s.id} 
-                      className="id-card bg-white rounded-2xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
-                      style={{ minHeight: '230px' }}
-                    >
-                      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-amber-400">
-                        <div className="flex items-center space-x-2">
-                          <img 
-                            src="/logo.png" 
-                            alt="SK Sungai Bayan" 
-                            className="w-7 h-7 object-contain bg-white/10 rounded p-0.5"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                          <div>
-                            <h3 className="font-extrabold text-xs tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
-                            <p className="text-[9px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black tracking-widest">
-                          2026
-                        </span>
-                      </div>
-
-                      <div className="p-4 flex items-center justify-between gap-3 bg-slate-50/50 flex-1">
-                        <div className="space-y-1.5 flex-1">
-                          <div>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
-                            <h4 className="font-black text-slate-900 text-sm leading-tight uppercase">{s.name}</h4>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <span className="bg-blue-100 text-blue-900 text-[10px] font-black px-2 py-0.5 rounded border border-blue-300">
-                              ID: {s.id}
-                            </span>
-                            <span className="bg-emerald-100 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-300">
-                              KELAS: {s.class}
-                            </span>
-                          </div>
-
-                          <div className="pt-1 text-[10px] text-slate-600 space-y-0.5 border-t border-slate-200">
-                            <p className="truncate max-w-[200px]">
-                              <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
-                            </p>
-                            <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
-                          </div>
-                        </div>
-
-                        <div className="bg-white p-2 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
-                          <img 
-                            src={qrUrl} 
-                            alt={`QR ${s.id}`} 
-                            className="w-24 h-24 object-contain rounded"
-                          />
-                          <p className="text-[8px] font-mono font-bold text-slate-500 mt-1">{s.id}</p>
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-900 px-4 py-1 flex items-center justify-between text-[8px] text-slate-400">
-                        <span>Kad ID Rasmi Sekolah SK Sungai Bayan</span>
-                        <span className="font-mono text-amber-400">E-HADIR DIGITAL</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
 
