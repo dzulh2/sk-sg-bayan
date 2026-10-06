@@ -6,9 +6,10 @@ import {
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // =========================================================================
-// 1. MASUKKAN PAUTAN GOOGLE SHEETS (CSV) ANDA DI SINI UNTUK SELARAS SEMUA PERANTI AUTOMATIK
+// 1. TAMPAL PAUTAN GOOGLE SHEETS CSV & GOOGLE APPS SCRIPT WEB APP DI SINI
 // =========================================================================
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; // <--- Tampal pautan Google Sheets CSV anda di sini
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
+const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbwp21xM60fM1C9a8DCYC2o3ar10-NvYHWTFoWWddOOij4ssLLjbbcSTJHIG-Rj-0Ifq/exec"; // <--- Tampal Web App URL Langkah 1 di sini
 
 // --- INITIAL DUMMY DATA ---
 const INITIAL_STUDENTS = [
@@ -105,13 +106,14 @@ export default function App() {
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
   const [saveMessage, setSaveMessage] = useState('');
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
 
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
-  // AUTOMATIC SYNC DARI GOOGLE SHEETS SETIAP KALI SEBARANG PERANTI (LAPTOP/PHONE) MEMBUKA LAMAN WEB
+  // 1. AUTO-SYNC MAKLUMAT MURID DARI GOOGLE SHEETS
   useEffect(() => {
     const activeUrl = sheetUrl.includes('output=csv') ? sheetUrl : DEFAULT_SHEET_URL;
     if (activeUrl && activeUrl.includes('output=csv')) {
@@ -124,11 +126,26 @@ export default function App() {
             localStorage.setItem('sksb_students', JSON.stringify(imported));
           }
         })
-        .catch(err => console.error("Auto sync error:", err));
+        .catch(err => console.error("Auto sync student error:", err));
     }
   }, [sheetUrl]);
 
-  // Kekalkan rekod kehadiran dalam localStorage
+  // 2. AUTO-FETCH REKOD KEHADIRAN TERKINI DARI CLOUD (GOOGLE APPS SCRIPT)
+  useEffect(() => {
+    if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
+      fetch(ATTENDANCE_API_URL)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            setAttendance(data);
+            localStorage.setItem('sksb_attendance', JSON.stringify(data));
+          }
+        })
+        .catch(err => console.error("Error fetching online attendance:", err));
+    }
+  }, []);
+
+  // Simpan ke localStorage sebagai sokongan offline
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
@@ -169,7 +186,7 @@ export default function App() {
   }, [activeTab, students, selectedDate]);
 
   // Handle QR Code Scan
-  const handleQrScanned = (scannedCode) => {
+  const handleQrScanned = async (scannedCode) => {
     const rawCode = scannedCode.trim();
     const cleanCode = rawCode.toLowerCase();
 
@@ -188,9 +205,11 @@ export default function App() {
     });
 
     if (foundStudent) {
+      const newRecord = { student_id: foundStudent.id, date: selectedDate, status: 'Hadir', method: 'QR Kamera' };
+
       setAttendance(prev => {
         const filtered = prev.filter(a => !(a.student_id === foundStudent.id && a.date === selectedDate));
-        return [...filtered, { student_id: foundStudent.id, date: selectedDate, status: 'Hadir', method: 'QR Kamera' }];
+        return [...filtered, newRecord];
       });
 
       setScanResult({
@@ -198,11 +217,26 @@ export default function App() {
         student: foundStudent,
         message: `KEHADIRAN DIREKODKAN (${selectedDate}): ${foundStudent.name} (${foundStudent.class})`
       });
+
+      // Auto-sync imbasan QR terus ke Cloud
+      if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
+        try {
+          await fetch(ATTENDANCE_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ records: [newRecord] })
+          });
+        } catch (e) {
+          console.error("Cloud sync error on QR scan:", e);
+        }
+      }
+
     } else {
       setScanResult({
         success: false,
         student: null,
-        message: `KOD QR TIDAK DITEMUI: "${rawCode}" tiada dalam senarai murid. Sila pastikan Google Sheets mengandungi No ID ini.`
+        message: `KOD QR TIDAK DITEMUI: "${rawCode}" tiada dalam senarai murid.`
       });
     }
   };
@@ -300,12 +334,37 @@ export default function App() {
     });
   };
 
-  const handleSaveAttendance = () => {
-    localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
-    setSaveMessage(`Rekod kehadiran kelas ${selectedClass} (${selectedDate}) telah disimpan!`);
+  // MANUALLY SAVE / SUBMIT REKOD KEHADIRAN KE GOOGLE SHEETS CLOUD
+  const handleSaveAttendance = async () => {
+    setIsSavingAttendance(true);
+    setSaveMessage('Sedang menyimpan rekod kehadiran ke pangkalan data awan...');
+
+    const classStudents = students.filter(s => s.class === selectedClass);
+    const recordsToSync = attendance.filter(a => 
+      a.date === selectedDate && classStudents.some(cs => cs.id === a.student_id)
+    );
+
+    if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
+      try {
+        await fetch(ATTENDANCE_API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: recordsToSync })
+        });
+        setSaveMessage(`Berjaya! Rekod kehadiran kelas ${selectedClass} (${selectedDate}) telah disimpan & diselaraskan ke semua peranti!`);
+      } catch (err) {
+        console.error("Cloud save error:", err);
+        setSaveMessage(`Disimpan secara tempatan. (Ralat sambungan awan)`);
+      }
+    } else {
+      setSaveMessage(`Rekod disimpan secara tempatan (Sila sediakan Web App API URL untuk sync antarabangsa/multi-peranti).`);
+    }
+
+    setIsSavingAttendance(false);
     setTimeout(() => {
       setSaveMessage('');
-    }, 4000);
+    }, 5000);
   };
 
   const printFilteredStudents = printClassFilter === 'Semua' 
@@ -738,10 +797,11 @@ export default function App() {
 
                   <button 
                     onClick={handleSaveAttendance}
-                    className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm"
+                    disabled={isSavingAttendance}
+                    className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm"
                   >
-                    <Save className="w-4 h-4" />
-                    <span>Simpan Rekod</span>
+                    <Save className={`w-4 h-4 ${isSavingAttendance ? 'animate-spin' : ''}`} />
+                    <span>{isSavingAttendance ? 'Sedang Simpan...' : 'Simpan Rekod'}</span>
                   </button>
                 </div>
               </div>
