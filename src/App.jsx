@@ -1015,30 +1015,48 @@ export default function App() {
                             </span>
                           </div>
 
-                          <div className="p-3.5 flex items-center justify-between gap-2.5 bg-slate-50/50 flex-1 overflow-hidden">
+                          <div className="p-3.5 flex items-center justify-between gap-3 bg-slate-50/50 flex-1 overflow-hidden">
+                        {/* LEFT COLUMN: STUDENT INFO WITH AUTO-RESIZING NAME */}
                         <div className="space-y-1.5 flex-1 min-w-0 pr-1">
                           <div>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
-                            <h4 className="font-black text-slate-900 text-xs sm:text-sm leading-tight uppercase truncate" title={s.name}>{s.name}</h4>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                            <h4 
+                              className={`font-black text-slate-900 leading-tight uppercase break-words ${
+                                s.name.length > 30 
+                                  ? 'text-[10px]' 
+                                  : s.name.length > 22 
+                                    ? 'text-[11px]' 
+                                    : 'text-xs'
+                              }`}
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden'
+                              }}
+                            >
+                              {s.name}
+                            </h4>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="bg-blue-100 text-blue-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-blue-300">
                               ID: {s.id}
                             </span>
-                            <span className="bg-emerald-100 text-emerald-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-emerald-300 truncate max-w-[130px]">
+                            <span className="bg-emerald-100 text-emerald-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
                               KELAS: {s.class}
                             </span>
                           </div>
 
                           <div className="pt-1 text-[9px] text-slate-600 space-y-0.5 border-t border-slate-200">
-                            <p className="truncate">
+                            <p className="break-all">
                               <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
                             </p>
-                            <p className="truncate"><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
+                            <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
                           </div>
                         </div>
 
+                        {/* RIGHT COLUMN: FIXED QR CODE CONTAINER */}
                         <div className="bg-white p-1.5 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
                           <img 
                             src={qrUrl} 
