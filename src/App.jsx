@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Mail
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // --- INITIAL DUMMY DATA ---
 const INITIAL_STUDENTS = [
-  { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'Zulkifli Ahmad', phone: '012-3456789', qr_token: 'SB20260001' },
-  { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'Hassan Basri', phone: '013-9876543', qr_token: 'SB20260002' },
-  { id: 'SB20260003', name: 'MUHAMMAD DANIAL BIN FARID', year: '4', class: '4 Cemerlang', gender: 'L', status: 'Active', guardian: 'Farid Kamil', phone: '017-1122334', qr_token: 'SB20260003' },
-  { id: 'SB20260004', name: 'SITI NURHALIZA BINTI AMIR', year: '4', class: '4 Cemerlang', gender: 'P', status: 'Active', guardian: 'Amir Hamzah', phone: '019-8877665', qr_token: 'SB20260004' }
+  { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', phone: '012-3456789', qr_token: 'SB20260001' },
+  { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', phone: '013-9876543', qr_token: 'SB20260002' }
 ];
 
 const INITIAL_ATTENDANCE = [
   { student_id: 'SB20260001', date: '2026-10-06', status: 'Hadir', method: 'QR' },
-  { student_id: 'SB20260002', date: '2026-10-06', status: 'Tidak Hadir', method: 'Manual' },
-  { student_id: 'SB20260003', date: '2026-10-06', status: 'Bersebab', method: 'Manual' }
+  { student_id: 'SB20260002', date: '2026-10-06', status: 'Tidak Hadir', method: 'Manual' }
 ];
 
 // CSV Parser Helper
@@ -52,7 +49,7 @@ const parseCSV = (csvText) => {
       gender: cleanValues[2] || 'L',
       year: cleanValues[3] || '1',
       class: cleanValues[4] || '1 FAJAR',
-      guardian: cleanValues[5] || '-',
+      guardian: cleanValues[5] || '-', // Emel DELIMA
       phone: cleanValues[6] || '-',
       status: 'Active',
       qr_token: studentId
@@ -280,14 +277,12 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
-  // Filter murid untuk tab cetakan
   const printFilteredStudents = printClassFilter === 'Semua' 
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
-      {/* CSS KHAS UNTUK CETAAN A4 */}
       <style>{`
         @media print {
           body { background: white !important; color: black !important; }
@@ -301,8 +296,15 @@ export default function App() {
       {/* Top Navbar */}
       <header className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print">
         <div className="flex items-center space-x-3">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <Shield className="w-6 h-6 text-white" />
+          {/* Logo Sekolah di Header */}
+          <img 
+            src="/logo.png" 
+            alt="Logo SK Sungai Bayan" 
+            className="w-8 h-8 object-contain"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+          <div className="bg-blue-600 p-2 rounded-lg header-fallback-icon">
+            <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight">SK SUNGAI BAYAN</h1>
@@ -435,12 +437,18 @@ export default function App() {
                       className="id-card bg-white rounded-2xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
                       style={{ minHeight: '230px' }}
                     >
-                      {/* Card Header Design */}
+                      {/* Card Header Design dengan Logo Sekolah */}
                       <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-amber-400">
                         <div className="flex items-center space-x-2">
-                          <div className="bg-amber-400 p-1.5 rounded-lg text-slate-900 font-black">
-                            <Shield className="w-4 h-4" />
-                          </div>
+                          {/* Paparan Logo Sekolah PNG */}
+                          <img 
+                            src="/logo.png" 
+                            alt="SK Sungai Bayan" 
+                            className="w-7 h-7 object-contain bg-white/10 rounded p-0.5"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
                           <div>
                             <h3 className="font-extrabold text-xs tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
                             <p className="text-[9px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
@@ -468,8 +476,11 @@ export default function App() {
                             </span>
                           </div>
 
+                          {/* KEMASKINI: Ditukar daripada "Waris" kepada "Emel DELIMA" */}
                           <div className="pt-1 text-[10px] text-slate-600 space-y-0.5 border-t border-slate-200">
-                            <p><span className="font-bold text-slate-800">Waris:</span> {s.guardian}</p>
+                            <p className="truncate max-w-[200px]">
+                              <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
+                            </p>
                             <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
                           </div>
                         </div>
@@ -542,7 +553,7 @@ export default function App() {
                         <div className="mt-3 bg-white/80 p-3 rounded-lg border border-emerald-200 text-xs space-y-1 text-slate-700">
                           <p><span className="font-semibold">Nama:</span> {scanResult.student.name}</p>
                           <p><span className="font-semibold">Kelas:</span> {scanResult.student.class}</p>
-                          <p><span className="font-semibold">Waris:</span> {scanResult.student.guardian} ({scanResult.student.phone})</p>
+                          <p><span className="font-semibold">Emel DELIMA:</span> {scanResult.student.guardian}</p>
                         </div>
                       )}
                     </div>
@@ -725,8 +736,8 @@ export default function App() {
                     </div>
 
                     <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                      <p><span className="font-semibold text-slate-700">Waris:</span> {s.guardian}</p>
-                      <p><span className="font-semibold text-slate-700">Telefon:</span> {s.phone}</p>
+                      <p className="truncate"><span className="font-semibold text-slate-700">Emel DELIMA:</span> {s.guardian}</p>
+                      <p><span className="font-semibold text-slate-700">No. Tel:</span> {s.phone}</p>
                       <p><span className="font-semibold text-slate-700">QR Identity:</span> {s.qr_token}</p>
                     </div>
                   </div>
