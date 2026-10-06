@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight, UserX, Percent
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // =========================================================================
-// 1. TAMPAL PAUTAN GOOGLE SHEETS CSV & GOOGLE APPS SCRIPT WEB APP DI SINI
+// PAUTAN GOOGLE SHEETS & APPS SCRIPT ANDA
 // =========================================================================
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
-const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbwp21xM60fM1C9a8DCYC2o3ar10-NvYHWTFoWWddOOij4ssLLjbbcSTJHIG-Rj-0Ifq/exec"; // <--- Tampal Web App URL Langkah 1 di sini
+const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbwp21xM60fM1C9a8DCYC2o3ar10-NvYHWTFoWWddOOij4ssLLjbbcSTJHIG-Rj-0Ifq/exec"; 
 
 // --- INITIAL DUMMY DATA ---
 const INITIAL_STUDENTS = [
@@ -102,7 +102,7 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
 
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
-  const [dashboardDetailClass, setDashboardDetailClass] = useState('');
+  const [dashboardDetailClass, setDashboardDetailClass] = useState('Semua Kelas');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
   const [saveMessage, setSaveMessage] = useState('');
@@ -113,7 +113,7 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
-  // 1. AUTO-SYNC MAKLUMAT MURID DARI GOOGLE SHEETS
+  // Auto Sync Data Murid
   useEffect(() => {
     const activeUrl = sheetUrl.includes('output=csv') ? sheetUrl : DEFAULT_SHEET_URL;
     if (activeUrl && activeUrl.includes('output=csv')) {
@@ -130,7 +130,7 @@ export default function App() {
     }
   }, [sheetUrl]);
 
-  // 2. AUTO-FETCH REKOD KEHADIRAN TERKINI DARI CLOUD (GOOGLE APPS SCRIPT)
+  // Auto Sync Kehadiran Cloud
   useEffect(() => {
     if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
       fetch(ATTENDANCE_API_URL)
@@ -145,16 +145,9 @@ export default function App() {
     }
   }, []);
 
-  // Simpan ke localStorage sebagai sokongan offline
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
-
-  useEffect(() => {
-    if (!dashboardDetailClass && availableClasses.length > 0) {
-      setDashboardDetailClass(availableClasses[0]);
-    }
-  }, [students]);
 
   // QR Scanner Logic
   useEffect(() => {
@@ -185,7 +178,6 @@ export default function App() {
     };
   }, [activeTab, students, selectedDate]);
 
-  // Handle QR Code Scan
   const handleQrScanned = async (scannedCode) => {
     const rawCode = scannedCode.trim();
     const cleanCode = rawCode.toLowerCase();
@@ -218,7 +210,6 @@ export default function App() {
         message: `KEHADIRAN DIREKODKAN (${selectedDate}): ${foundStudent.name} (${foundStudent.class})`
       });
 
-      // Auto-sync imbasan QR terus ke Cloud
       if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
         try {
           await fetch(ATTENDANCE_API_URL, {
@@ -334,7 +325,6 @@ export default function App() {
     });
   };
 
-  // MANUALLY SAVE / SUBMIT REKOD KEHADIRAN KE GOOGLE SHEETS CLOUD
   const handleSaveAttendance = async () => {
     setIsSavingAttendance(true);
     setSaveMessage('Sedang menyimpan rekod kehadiran ke pangkalan data awan...');
@@ -352,13 +342,13 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: recordsToSync })
         });
-        setSaveMessage(`Berjaya! Rekod kehadiran kelas ${selectedClass} (${selectedDate}) telah disimpan & diselaraskan ke semua peranti!`);
+        setSaveMessage(`Berjaya! Rekod kehadiran kelas ${selectedClass} (${selectedDate}) telah disimpan!`);
       } catch (err) {
         console.error("Cloud save error:", err);
         setSaveMessage(`Disimpan secara tempatan. (Ralat sambungan awan)`);
       }
     } else {
-      setSaveMessage(`Rekod disimpan secara tempatan (Sila sediakan Web App API URL untuk sync antarabangsa/multi-peranti).`);
+      setSaveMessage(`Rekod disimpan secara tempatan.`);
     }
 
     setIsSavingAttendance(false);
@@ -373,8 +363,17 @@ export default function App() {
 
   const filteredAttendanceByDate = attendance.filter(a => a.date === selectedDate);
 
+  // Peratusan Kehadiran Keseluruhan Sekolah
+  const totalSchoolStudents = students.length;
+  const totalSchoolHadir = filteredAttendanceByDate.filter(a => a.status === 'Hadir').length;
+  const totalSchoolPercent = totalSchoolStudents > 0 ? Math.round((totalSchoolHadir / totalSchoolStudents) * 100) : 0;
+
+  // Kiraan Statistik Perincian Kelas / Semua Kelas
   const getDetailedClassStats = (className) => {
-    const classStudents = students.filter(s => s.class === className);
+    const classStudents = className === 'Semua Kelas' 
+      ? students 
+      : students.filter(s => s.class === className);
+
     const totalStudents = classStudents.length;
 
     let totalHadir = 0;
@@ -391,25 +390,39 @@ export default function App() {
     let femaleBersebab = 0;
     let femaleTotal = 0;
 
+    const maleAbsentList = [];
+    const femaleAbsentList = [];
+
     classStudents.forEach(st => {
       const att = filteredAttendanceByDate.find(a => a.student_id === st.id);
       const isMale = st.gender === 'L';
-      
+      const status = att ? att.status : 'Tidak Hadir'; // Default Tidak Hadir jika belum direkod
+
       if (isMale) maleTotal++;
       else femaleTotal++;
 
-      if (att?.status === 'Hadir') {
+      if (status === 'Hadir') {
         totalHadir++;
         if (isMale) maleHadir++;
         else femaleHadir++;
-      } else if (att?.status === 'Bersebab') {
+      } else if (status === 'Bersebab') {
         totalBersebab++;
-        if (isMale) maleBersebab++;
-        else femaleBersebab++;
-      } else if (att?.status === 'Tidak Hadir') {
+        if (isMale) {
+          maleBersebab++;
+          maleAbsentList.push({ ...st, reason: 'Bersebab' });
+        } else {
+          femaleBersebab++;
+          femaleAbsentList.push({ ...st, reason: 'Bersebab' });
+        }
+      } else {
         totalTidakHadir++;
-        if (isMale) maleTidakHadir++;
-        else femaleTidakHadir++;
+        if (isMale) {
+          maleTidakHadir++;
+          maleAbsentList.push({ ...st, reason: 'Tanpa Sebab' });
+        } else {
+          femaleTidakHadir++;
+          femaleAbsentList.push({ ...st, reason: 'Tanpa Sebab' });
+        }
       }
     });
 
@@ -417,8 +430,8 @@ export default function App() {
 
     return {
       totalStudents, totalHadir, totalTidakHadir, totalBersebab, percent,
-      maleTotal, maleHadir, maleTidakHadir, maleBersebab,
-      femaleTotal, femaleHadir, femaleTidakHadir, femaleBersebab
+      maleTotal, maleHadir, maleTidakHadir, maleBersebab, maleAbsentList,
+      femaleTotal, femaleHadir, femaleTidakHadir, femaleBersebab, femaleAbsentList
     };
   };
 
@@ -544,7 +557,7 @@ export default function App() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran Keseluruhan</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Pantau statistik kehadiran harian dan pecahan lelaki/perempuan mengikut kelas.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Pantau statistik kehadiran harian dan senarai nama murid tidak hadir.</p>
                 </div>
                 
                 <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
@@ -559,17 +572,15 @@ export default function App() {
                 </div>
               </div>
               
-              {/* Stat Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Stat Cards Termasuk Peratusan Keseluruhan Sekolah */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{totalSchoolStudents}</p>
                 </div>
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hadir</p>
-                  <p className="text-2xl font-bold text-emerald-600 mt-1">
-                    {filteredAttendanceByDate.filter(a => a.status === 'Hadir').length}
-                  </p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">{totalSchoolHadir}</p>
                 </div>
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
@@ -583,24 +594,28 @@ export default function App() {
                     {filteredAttendanceByDate.filter(a => a.status === 'Bersebab').length}
                   </p>
                 </div>
+                <div className="bg-gradient-to-br from-blue-900 to-indigo-900 text-white p-5 rounded-xl shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-blue-200 uppercase tracking-wider">% Kehadiran Sekolah</p>
+                    <Percent className="w-4 h-4 text-blue-300" />
+                  </div>
+                  <p className="text-2xl font-black text-amber-400 mt-1">{totalSchoolPercent}%</p>
+                </div>
               </div>
 
-              {/* OVERALL CHART & DETAILED BREAKDOWN */}
+              {/* CARTA & MAKLUMAT TERPERINCI + SENARAI NAMA TIDAK HADIR */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS */}
-                <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div className="lg:col-span-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b pb-3 border-slate-100">
                     <div className="flex items-center space-x-2">
                       <BarChart3 className="w-5 h-5 text-blue-600" />
                       <h3 className="font-bold text-slate-800 text-sm">Carta Kehadiran Mengikut Kelas ({selectedDate})</h3>
                     </div>
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-medium">
-                      Klik bar kelas untuk butiran
-                    </span>
                   </div>
 
-                  <div className="space-y-3 pt-1">
+                  <div className="space-y-3 pt-1 max-h-[500px] overflow-y-auto pr-1">
                     {availableClasses.map(cName => {
                       const stats = getDetailedClassStats(cName);
                       const isSelected = dashboardDetailClass === cName;
@@ -641,119 +656,101 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* MAKLUMAT TERPERINCI KELAS */}
-                <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
-                  <div>
-                    <div className="border-b pb-3 border-slate-100 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Maklumat Terperinci</p>
-                        <h3 className="font-black text-slate-900 text-lg">Kelas {dashboardDetailClass || 'Pilihan'}</h3>
-                      </div>
-
-                      <select 
-                        value={dashboardDetailClass} 
-                        onChange={e => setDashboardDetailClass(e.target.value)}
-                        className="bg-slate-100 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-2.5 py-1.5 outline-none"
-                      >
-                        {availableClasses.map(c => (
-                          <option key={c} value={c}>Kelas {c}</option>
-                        ))}
-                      </select>
+                {/* MAKLUMAT TERPERINCI & SENARAI NAMA MURID TIDAK HADIR */}
+                <div className="lg:col-span-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                  <div className="border-b pb-3 border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Maklumat Terperinci</p>
+                      <h3 className="font-black text-slate-900 text-lg">{dashboardDetailClass}</h3>
                     </div>
 
-                    {dashboardDetailClass && (() => {
-                      const detail = getDetailedClassStats(dashboardDetailClass);
-                      return (
-                        <div className="mt-4 space-y-4">
-                          
-                          {/* LELAKI */}
-                          <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-blue-900 uppercase tracking-wide">Lelaki (L)</span>
-                              <span className="text-xs font-bold bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full">
-                                Jumlah: {detail.maleTotal}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                              <div className="bg-white p-2.5 rounded-lg border border-blue-100">
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Hadir</p>
-                                <p className="text-base font-bold text-emerald-600">{detail.maleHadir}</p>
-                              </div>
-                              <div className="bg-white p-2.5 rounded-lg border border-blue-100">
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Tidak Hadir / Bersebab</p>
-                                <p className="text-base font-bold text-red-600">{detail.maleTidakHadir + detail.maleBersebab}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* PEREMPUAN */}
-                          <div className="bg-pink-50/60 p-4 rounded-xl border border-pink-200 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-pink-900 uppercase tracking-wide">Perempuan (P)</span>
-                              <span className="text-xs font-bold bg-pink-200/80 text-pink-900 px-2 py-0.5 rounded-full">
-                                Jumlah: {detail.femaleTotal}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                              <div className="bg-white p-2.5 rounded-lg border border-pink-100">
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Hadir</p>
-                                <p className="text-base font-bold text-emerald-600">{detail.femaleHadir}</p>
-                              </div>
-                              <div className="bg-white p-2.5 rounded-lg border border-pink-100">
-                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Tidak Hadir / Bersebab</p>
-                                <p className="text-base font-bold text-red-600">{detail.femaleTidakHadir + detail.femaleBersebab}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* KESELURAHAN */}
-                          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-1">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-slate-300">Peratusan Kehadiran Kelas</span>
-                              <span className="font-bold text-emerald-400 text-sm">{detail.percent}%</span>
-                            </div>
-                            <p className="text-[10px] text-slate-400">
-                              {detail.totalHadir} murid hadir daripada {detail.totalStudents} murid berdaftar.
-                            </p>
-                          </div>
-
-                        </div>
-                      );
-                    })()}
+                    {/* DROPDOWN KELAS DENGAN PILIHAN "SEMUA KELAS" */}
+                    <select 
+                      value={dashboardDetailClass} 
+                      onChange={e => setDashboardDetailClass(e.target.value)}
+                      className="bg-slate-100 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-2.5 py-1.5 outline-none"
+                    >
+                      <option value="Semua Kelas">Semua Kelas</option>
+                      {availableClasses.map(c => (
+                        <option key={c} value={c}>Kelas {c}</option>
+                      ))}
+                    </select>
                   </div>
-                </div>
 
-              </div>
-
-              {/* Student Quick List */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-800">Senarai Ringkas Kehadiran ({selectedDate})</h3>
-                  <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
-                </div>
-                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                  {students.map(s => {
-                    const att = attendance.find(a => a.student_id === s.id && a.date === selectedDate);
+                  {(() => {
+                    const detail = getDetailedClassStats(dashboardDetailClass);
                     return (
-                      <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                        <div>
-                          <p className="font-medium text-slate-900">{s.name}</p>
-                          <p className="text-xs text-slate-500">{s.id} • Kelas: {s.class} ({s.gender})</p>
+                      <div className="space-y-4">
+                        
+                        {/* LELAKI */}
+                        <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-blue-900 uppercase tracking-wide">Lelaki (L)</span>
+                            <span className="text-xs font-bold bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full">
+                              Hadir: {detail.maleHadir} / {detail.maleTotal}
+                            </span>
+                          </div>
+
+                          {/* SENARAI MURID LELAKI TIDAK HADIR */}
+                          <div className="bg-white p-3 rounded-lg border border-blue-100 space-y-1.5">
+                            <p className="text-[10px] font-bold text-red-600 uppercase flex items-center gap-1">
+                              <UserX className="w-3.5 h-3.5" />
+                              <span>Senarai Tidak Hadir ({detail.maleAbsentList.length})</span>
+                            </p>
+                            {detail.maleAbsentList.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">Semua murid lelaki hadir.</p>
+                            ) : (
+                              <ul className="divide-y divide-slate-100 max-h-32 overflow-y-auto pr-1">
+                                {detail.maleAbsentList.map(st => (
+                                  <li key={st.id} className="py-1 text-xs flex items-center justify-between">
+                                    <span className="font-medium text-slate-800 uppercase">{st.name} <span className="text-[10px] text-slate-400">({st.class})</span></span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${st.reason === 'Bersebab' ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'}`}>
+                                      {st.reason}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            att?.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
-                            att?.status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
-                            att?.status === 'Bersebab' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {att ? att.status : 'Belum Rekod'}
-                          </span>
-                          {att?.method && <p className="text-[10px] text-slate-400 mt-0.5">{att.method}</p>}
+
+                        {/* PEREMPUAN */}
+                        <div className="bg-pink-50/60 p-4 rounded-xl border border-pink-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-pink-900 uppercase tracking-wide">Perempuan (P)</span>
+                            <span className="text-xs font-bold bg-pink-200/80 text-pink-900 px-2 py-0.5 rounded-full">
+                              Hadir: {detail.femaleHadir} / {detail.femaleTotal}
+                            </span>
+                          </div>
+
+                          {/* SENARAI MURID PEREMPUAN TIDAK HADIR */}
+                          <div className="bg-white p-3 rounded-lg border border-pink-100 space-y-1.5">
+                            <p className="text-[10px] font-bold text-red-600 uppercase flex items-center gap-1">
+                              <UserX className="w-3.5 h-3.5" />
+                              <span>Senarai Tidak Hadir ({detail.femaleAbsentList.length})</span>
+                            </p>
+                            {detail.femaleAbsentList.length === 0 ? (
+                              <p className="text-xs text-slate-400 italic">Semua murid perempuan hadir.</p>
+                            ) : (
+                              <ul className="divide-y divide-slate-100 max-h-32 overflow-y-auto pr-1">
+                                {detail.femaleAbsentList.map(st => (
+                                  <li key={st.id} className="py-1 text-xs flex items-center justify-between">
+                                    <span className="font-medium text-slate-800 uppercase">{st.name} <span className="text-[10px] text-slate-400">({st.class})</span></span>
+                                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${st.reason === 'Bersebab' ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'}`}>
+                                      {st.reason}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         </div>
+
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
+
               </div>
             </div>
           )}
