@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight, UserX, Percent
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, Award
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -370,6 +370,30 @@ export default function App() {
 
   // Kiraan Statistik Perincian Kelas / Semua Kelas
   const getDetailedClassStats = (className) => {
+    // --- FEATURE 1: LEADERBOARD CALCULATIONS ---
+  const getClassLeaderboard = () => {
+    return availableClasses
+      .map(cName => {
+        const stats = getDetailedClassStats(cName);
+        return { className: cName, percent: stats.percent, totalHadir: stats.totalHadir, totalStudents: stats.totalStudents };
+      })
+      .sort((a, b) => b.percent - a.percent);
+  };
+
+  // --- FEATURE 2: PERFECT ATTENDANCE STUDENTS ---
+  const [certFilterClass, setCertFilterClass] = useState('Semua');
+
+  const getPerfectAttendanceStudents = () => {
+    const targetStudents = certFilterClass === 'Semua' 
+      ? students 
+      : students.filter(s => s.class === certFilterClass);
+
+    return targetStudents.filter(st => {
+      const studentRecords = attendance.filter(a => a.student_id === st.id);
+      if (studentRecords.length === 0) return true; // Default present if no absence recorded
+      return !studentRecords.some(a => a.status === 'Tidak Hadir');
+    });
+  };
     const classStudents = className === 'Semua Kelas' 
       ? students 
       : students.filter(s => s.class === className);
@@ -602,7 +626,40 @@ export default function App() {
                   <p className="text-2xl font-black text-amber-400 mt-1">{totalSchoolPercent}%</p>
                 </div>
               </div>
+{/* TOP 3 CLASS LEADERBOARD WIDGET */}
+              <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 rounded-2xl p-5 text-white shadow-md">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Trophy className="w-6 h-6 text-yellow-200 animate-bounce" />
+                  <h3 className="font-extrabold text-lg tracking-wide">Papan Pendahulu Kehadiran Kelas Terbaik ({selectedDate})</h3>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {getClassLeaderboard().slice(0, 3).map((item, index) => {
+                    const rankBadges = [
+                      { rank: '1', bg: 'bg-yellow-400 text-slate-900', border: 'border-yellow-200' },
+                      { rank: '2', bg: 'bg-slate-200 text-slate-900', border: 'border-slate-300' },
+                      { rank: '3', bg: 'bg-amber-700 text-white', border: 'border-amber-800' }
+                    ];
+                    const badge = rankBadges[index];
+
+                    return (
+                      <div key={item.className} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold text-amber-100 uppercase">Kedudukan #{index + 1}</p>
+                          <h4 className="text-lg font-black">{item.className}</h4>
+                          <p className="text-xs text-amber-200">{item.totalHadir} / {item.totalStudents} Murid</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`inline-block w-8 h-8 rounded-full text-center leading-8 font-black text-sm ${badge.bg} mb-1 shadow-sm`}>
+                            #{badge.rank}
+                          </span>
+                          <p className="text-xl font-black text-yellow-300">{item.percent}%</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
               {/* CARTA & MAKLUMAT TERPERINCI + SENARAI NAMA TIDAK HADIR */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
@@ -868,7 +925,79 @@ export default function App() {
                   <h2 className="text-2xl font-bold">Penjana Kad Matrik & QR Murid</h2>
                   <p className="text-indigo-200 text-xs mt-1">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
                 </div>
+{/* PENJANA SIJIL KEHADIRAN 100% */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 no-print">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center font-bold">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-base">Penjana Sijil Kehadiran 100%</h3>
+                      <p className="text-xs text-slate-500">Cetak sijil penghargaan khas bagi murid yang tidak pernah tidak hadir.</p>
+                    </div>
+                  </div>
 
+                  <div className="flex items-center space-x-3">
+                    <select 
+                      value={certFilterClass} 
+                      onChange={e => setCertFilterClass(e.target.value)}
+                      className="bg-slate-100 text-slate-800 text-xs font-bold px-3 py-2 rounded-lg outline-none border border-slate-300"
+                    >
+                      <option value="Semua">Semua Kelas ({getPerfectAttendanceStudents().length} Murid)</option>
+                      {availableClasses.map(c => (
+                        <option key={c} value={c}>Kelas {c}</option>
+                      ))}
+                    </select>
+
+                    <button 
+                      onClick={() => window.print()} 
+                      className="flex items-center space-x-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Sijil (A4)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* TEMPLATE SIJIL KEHADIRAN 100% (PRINT AREA) */}
+              <div className="hidden print:block space-y-8">
+                {getPerfectAttendanceStudents().map(s => (
+                  <div 
+                    key={`cert-${s.id}`} 
+                    className="w-full h-[98vh] border-8 border-double border-amber-600 p-10 flex flex-col justify-between text-center bg-white relative page-break-after-always"
+                  >
+                    <div className="space-y-4">
+                      <img src="/logo.png" alt="Logo Sekolah" className="w-20 h-20 mx-auto object-contain" />
+                      <h1 className="text-3xl font-extrabold text-slate-900 uppercase tracking-widest">SEKOLAH KEBANGSAAN SUNGAI BAYAN</h1>
+                      <p className="text-sm font-semibold text-slate-600 uppercase">Sijil Penghargaan Kehadiran Penuh</p>
+                      <div className="w-32 h-1 bg-amber-500 mx-auto my-4"></div>
+                    </div>
+
+                    <div className="space-y-6 my-auto">
+                      <p className="text-base text-slate-700">Dengan ini diperakui bahawa</p>
+                      <h2 className="text-3xl font-black text-amber-700 uppercase underline decoration-amber-400 decoration-2">{s.name}</h2>
+                      <p className="text-sm font-bold text-slate-800">NO ID: {s.id} &nbsp;|&nbsp; KELAS: {s.class}</p>
+                      <p className="text-base text-slate-700 max-w-2xl mx-auto leading-relaxed">
+                        Telah mencapai rekod <strong>Kehadiran 100% (Penuh)</strong> bagi sesi persekolahan 2026 atas komitmen dan disiplin cemerlang yang ditunjukkan.
+                      </p>
+                    </div>
+
+                    <div className="flex items-end justify-between pt-12 text-xs text-slate-700 border-t border-slate-300">
+                      <div className="text-left">
+                        <p className="font-bold">Tarikh: {selectedDate}</p>
+                        <p>SK Sungai Bayan, HEM e-Hadir</p>
+                      </div>
+                      <div className="text-center w-48">
+                        <div className="border-b border-slate-800 mb-1 h-12"></div>
+                        <p className="font-bold uppercase">Guru Besar / PK HEM</p>
+                        <p className="text-[10px]">SK Sungai Bayan</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
                 <div className="flex items-center space-x-3">
                   <select 
                     value={printClassFilter} 
