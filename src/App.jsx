@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -46,10 +46,10 @@ const parseCSV = (csvText) => {
     parsedStudents.push({
       id: studentId,
       name: cleanValues[1] || 'TANPA NAMA',
-      gender: cleanValues[2] || 'L',
+      gender: (cleanValues[2] || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
       year: cleanValues[3] || '1',
       class: cleanValues[4] || '1 FAJAR',
-      guardian: cleanValues[5] || '-', // Emel DELIMA
+      guardian: cleanValues[5] || '-', 
       phone: cleanValues[6] || '-',
       status: 'Active',
       qr_token: studentId
@@ -62,7 +62,6 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Tarikh Pilihan (Default: Hari Ini YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -97,15 +96,15 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
 
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
+  const [dashboardDetailClass, setDashboardDetailClass] = useState('');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
   const [saveMessage, setSaveMessage] = useState('');
 
-  // QR Scanner Feedbacks
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // Auto Sync dari Google Sheets
+  // Auto Sync
   useEffect(() => {
     const savedUrl = localStorage.getItem('sksb_sheet_url');
     if (savedUrl) {
@@ -122,10 +121,16 @@ export default function App() {
     }
   }, []);
 
-  // Simpan rekod kehadiran
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
+
+  // Tetapkan kelas terperinci lalai jika belum dipilih
+  useEffect(() => {
+    if (!dashboardDetailClass && availableClasses.length > 0) {
+      setDashboardDetailClass(availableClasses[0]);
+    }
+  }, [students]);
 
   // QR Scanner Logic
   useEffect(() => {
@@ -156,7 +161,6 @@ export default function App() {
     };
   }, [activeTab, students, selectedDate]);
 
-  // Handle QR Code Scan
   const handleQrScanned = (scannedCode) => {
     const cleanCode = scannedCode.trim();
 
@@ -193,7 +197,6 @@ export default function App() {
     }
   };
 
-  // Sync Google Sheets
   const handleGoogleSheetsSync = async () => {
     if (!sheetUrl.trim()) {
       setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
@@ -293,8 +296,57 @@ export default function App() {
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
-  // Rekod kehadiran pada tarikh pilihan
   const filteredAttendanceByDate = attendance.filter(a => a.date === selectedDate);
+
+  // Kiraan Statistik Perincian Kelas Dashboard
+  const getDetailedClassStats = (className) => {
+    const classStudents = students.filter(s => s.class === className);
+    const totalStudents = classStudents.length;
+
+    let totalHadir = 0;
+    let totalTidakHadir = 0;
+    let totalBersebab = 0;
+
+    let maleHadir = 0;
+    let maleTidakHadir = 0;
+    let maleBersebab = 0;
+    let maleTotal = 0;
+
+    let femaleHadir = 0;
+    let femaleTidakHadir = 0;
+    let femaleBersebab = 0;
+    let femaleTotal = 0;
+
+    classStudents.forEach(st => {
+      const att = filteredAttendanceByDate.find(a => a.student_id === st.id);
+      const isMale = st.gender === 'L';
+      
+      if (isMale) maleTotal++;
+      else femaleTotal++;
+
+      if (att?.status === 'Hadir') {
+        totalHadir++;
+        if (isMale) maleHadir++;
+        else femaleHadir++;
+      } else if (att?.status === 'Bersebab') {
+        totalBersebab++;
+        if (isMale) maleBersebab++;
+        else femaleBersebab++;
+      } else if (att?.status === 'Tidak Hadir') {
+        totalTidakHadir++;
+        if (isMale) maleTidakHadir++;
+        else femaleTidakHadir++;
+      }
+    });
+
+    const percent = totalStudents > 0 ? Math.round((totalHadir / totalStudents) * 100) : 0;
+
+    return {
+      totalStudents, totalHadir, totalTidakHadir, totalBersebab, percent,
+      maleTotal, maleHadir, maleTidakHadir, maleBersebab,
+      femaleTotal, femaleHadir, femaleTidakHadir, femaleBersebab
+    };
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
@@ -361,7 +413,7 @@ export default function App() {
         <nav className="w-full md:w-64 bg-white border-r border-slate-200 p-4 space-y-1 no-print">
           <button 
             onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
+            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <Home className="w-4 h-4" />
             <span>Papan Pemuka</span>
@@ -412,6 +464,227 @@ export default function App() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 max-w-7xl">
+          {/* DASHBOARD TAB WITH CHARTS AND DETAILED CLASS BREAKDOWN */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran Keseluruhan</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Pantau statistik kehadiran harian dan pecahan lelaki/perempuan mengikut kelas.</p>
+                </div>
+                
+                <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold text-slate-500">Tarikh:</span>
+                  <input 
+                    type="date" 
+                    value={selectedDate}
+                    onChange={e => setSelectedDate(e.target.value)}
+                    className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                  />
+                </div>
+              </div>
+              
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hadir</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">
+                    {filteredAttendanceByDate.filter(a => a.status === 'Hadir').length}
+                  </p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">
+                    {filteredAttendanceByDate.filter(a => a.status === 'Tidak Hadir').length}
+                  </p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bersebab</p>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">
+                    {filteredAttendanceByDate.filter(a => a.status === 'Bersebab').length}
+                  </p>
+                </div>
+              </div>
+
+              {/* OVERALL CHART & DETAILED BREAKDOWN SECTION */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS (OVERALL CHART) */}
+                <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+                    <div className="flex items-center space-x-2">
+                      <BarChart3 className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-bold text-slate-800 text-sm">Carta Kehadiran Mengikut Kelas ({selectedDate})</h3>
+                    </div>
+                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-medium">
+                      Klik bar kelas untuk butiran
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    {availableClasses.map(cName => {
+                      const stats = getDetailedClassStats(cName);
+                      const isSelected = dashboardDetailClass === cName;
+
+                      return (
+                        <div 
+                          key={cName} 
+                          onClick={() => setDashboardDetailClass(cName)}
+                          className={`p-3 rounded-lg border cursor-pointer transition ${
+                            isSelected 
+                              ? 'bg-blue-50/80 border-blue-400 shadow-xs' 
+                              : 'bg-slate-50/50 border-slate-200 hover:bg-slate-100/70'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="font-bold text-slate-900 flex items-center gap-1">
+                              <span>Kelas {cName}</span>
+                              {isSelected && <ChevronRight className="w-3.5 h-3.5 text-blue-600" />}
+                            </span>
+                            <span className="font-mono font-bold text-slate-700">
+                              {stats.totalHadir} / {stats.totalStudents} ({stats.percent}%)
+                            </span>
+                          </div>
+
+                          {/* Visual Bar Chart */}
+                          <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden flex">
+                            <div 
+                              className="bg-emerald-500 h-full transition-all duration-500" 
+                              style={{ width: `${stats.percent}%` }}
+                            ></div>
+                            <div 
+                              className="bg-red-400 h-full transition-all duration-500" 
+                              style={{ width: `${100 - stats.percent}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* MAKLUMAT TERPERINCI KELAS YANG DIPILIH (LELAKI & PEREMPUAN) */}
+                <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+                  <div>
+                    <div className="border-b pb-3 border-slate-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Maklumat Terperinci</p>
+                        <h3 className="font-black text-slate-900 text-lg">Kelas {dashboardDetailClass || 'Pilihan'}</h3>
+                      </div>
+
+                      <select 
+                        value={dashboardDetailClass} 
+                        onChange={e => setDashboardDetailClass(e.target.value)}
+                        className="bg-slate-100 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-2.5 py-1.5 outline-none"
+                      >
+                        {availableClasses.map(c => (
+                          <option key={c} value={c}>Kelas {c}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {dashboardDetailClass && (() => {
+                      const detail = getDetailedClassStats(dashboardDetailClass);
+                      return (
+                        <div className="mt-4 space-y-4">
+                          
+                          {/* JANTINA: LELAKI */}
+                          <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-blue-900 uppercase tracking-wide">Lelaki (L)</span>
+                              <span className="text-xs font-bold bg-blue-200/80 text-blue-900 px-2 py-0.5 rounded-full">
+                                Jumlah: {detail.maleTotal}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                              <div className="bg-white p-2.5 rounded-lg border border-blue-100">
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Hadir</p>
+                                <p className="text-base font-bold text-emerald-600">{detail.maleHadir}</p>
+                              </div>
+                              <div className="bg-white p-2.5 rounded-lg border border-blue-100">
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Tidak Hadir / Bersebab</p>
+                                <p className="text-base font-bold text-red-600">{detail.maleTidakHadir + detail.maleBersebab}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* JANTINA: PEREMPUAN */}
+                          <div className="bg-pink-50/60 p-4 rounded-xl border border-pink-200 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-pink-900 uppercase tracking-wide">Perempuan (P)</span>
+                              <span className="text-xs font-bold bg-pink-200/80 text-pink-900 px-2 py-0.5 rounded-full">
+                                Jumlah: {detail.femaleTotal}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                              <div className="bg-white p-2.5 rounded-lg border border-pink-100">
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Hadir</p>
+                                <p className="text-base font-bold text-emerald-600">{detail.femaleHadir}</p>
+                              </div>
+                              <div className="bg-white p-2.5 rounded-lg border border-pink-100">
+                                <p className="text-[10px] text-slate-400 font-semibold uppercase">Tidak Hadir / Bersebab</p>
+                                <p className="text-base font-bold text-red-600">{detail.femaleTidakHadir + detail.femaleBersebab}</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* KESELURAHAN KELAS */}
+                          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-300">Peratusan Kehadiran Kelas</span>
+                              <span className="font-bold text-emerald-400 text-sm">{detail.percent}%</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400">
+                              {detail.totalHadir} murid hadir daripada {detail.totalStudents} murid berdaftar.
+                            </p>
+                          </div>
+
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Student Quick List */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-800">Senarai Ringkas Kehadiran ({selectedDate})</h3>
+                  <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  {students.map(s => {
+                    const att = attendance.find(a => a.student_id === s.id && a.date === selectedDate);
+                    return (
+                      <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                        <div>
+                          <p className="font-medium text-slate-900">{s.name}</p>
+                          <p className="text-xs text-slate-500">{s.id} • Kelas: {s.class} ({s.gender})</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            att?.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
+                            att?.status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
+                            att?.status === 'Bersebab' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {att ? att.status : 'Belum Rekod'}
+                          </span>
+                          {att?.method && <p className="text-[10px] text-slate-400 mt-0.5">{att.method}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* CLASS ATTENDANCE TAB */}
           {activeTab === 'attendance' && (
             <div className="space-y-6">
@@ -422,7 +695,6 @@ export default function App() {
                 </div>
                 
                 <div className="flex flex-wrap items-center gap-3">
-                  {/* PEMILIH TARIKH (DATE PICKER) */}
                   <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
                     <Calendar className="w-4 h-4 text-blue-600" />
                     <input 
@@ -433,7 +705,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* PEMILIH KELAS */}
                   <select 
                     value={selectedClass} 
                     onChange={e => setSelectedClass(e.target.value)}
@@ -514,83 +785,6 @@ export default function App() {
                     })}
                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
-
-          {/* DASHBOARD TAB */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran</h2>
-                
-                {/* PEMILIH TARIKH DASHBOARD */}
-                <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-bold text-slate-500">Tarikh:</span>
-                  <input 
-                    type="date" 
-                    value={selectedDate}
-                    onChange={e => setSelectedDate(e.target.value)}
-                    className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hadir</p>
-                  <p className="text-2xl font-bold text-emerald-600 mt-1">
-                    {filteredAttendanceByDate.filter(a => a.status === 'Hadir').length}
-                  </p>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
-                  <p className="text-2xl font-bold text-red-600 mt-1">
-                    {filteredAttendanceByDate.filter(a => a.status === 'Tidak Hadir').length}
-                  </p>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bersebab</p>
-                  <p className="text-2xl font-bold text-purple-600 mt-1">
-                    {filteredAttendanceByDate.filter(a => a.status === 'Bersebab').length}
-                  </p>
-                </div>
-              </div>
-
-              {/* Student Quick List */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-800">Senarai Ringkas Kehadiran ({selectedDate})</h3>
-                  <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
-                </div>
-                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                  {students.map(s => {
-                    const att = attendance.find(a => a.student_id === s.id && a.date === selectedDate);
-                    return (
-                      <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                        <div>
-                          <p className="font-medium text-slate-900">{s.name}</p>
-                          <p className="text-xs text-slate-500">{s.id} • Kelas: {s.class}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            att?.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
-                            att?.status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
-                            att?.status === 'Bersebab' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {att ? att.status : 'Belum Rekod'}
-                          </span>
-                          {att?.method && <p className="text-[10px] text-slate-400 mt-0.5">{att.method}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             </div>
           )}
