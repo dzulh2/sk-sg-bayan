@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Volume2
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -36,7 +36,6 @@ const parseCSV = (csvText) => {
     const firstCol = cleanValues[0] || '';
     const secondCol = cleanValues[1] || '';
 
-    // Abaikan baris tajuk
     if (
       firstCol.toLowerCase().includes('no id') || 
       firstCol.toLowerCase().includes('id murid') ||
@@ -95,6 +94,7 @@ export default function App() {
   const [loginError, setLoginError] = useState('');
 
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
+  const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
 
   // QR Scanner Feedbacks
@@ -118,12 +118,12 @@ export default function App() {
     }
   }, []);
 
-  // Simpan rekod kehadiran setiap kali dikemaskini
+  // Simpan rekod kehadiran
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
 
-  // QR Scanner Component Logic
+  // QR Scanner Logic
   useEffect(() => {
     let scanner = null;
     if (activeTab === 'scan') {
@@ -134,16 +134,14 @@ export default function App() {
           qrbox: { width: 250, height: 250 },
           formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
         },
-        /* verbose= */ false
+        false
       );
 
       scanner.render(
         (decodedText) => {
           handleQrScanned(decodedText);
         },
-        (errorMessage) => {
-          // Scanning in progress...
-        }
+        () => {}
       );
     }
 
@@ -154,12 +152,11 @@ export default function App() {
     };
   }, [activeTab, students]);
 
-  // Fungsi Proses Imbasan QR
+  // Handle QR Code Scan
   const handleQrScanned = (scannedCode) => {
     const today = '2026-10-06';
     const cleanCode = scannedCode.trim();
 
-    // Cari murid mengikut ID atau QR Token
     const foundStudent = students.find(s => 
       s.id.toLowerCase() === cleanCode.toLowerCase() || 
       s.qr_token.toLowerCase() === cleanCode.toLowerCase()
@@ -283,10 +280,26 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
+  // Filter murid untuk tab cetakan
+  const printFilteredStudents = printClassFilter === 'Semua' 
+    ? students 
+    : students.filter(s => s.class === printClassFilter);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
+      {/* CSS KHAS UNTUK CETAAN A4 */}
+      <style>{`
+        @media print {
+          body { background: white !important; color: black !important; }
+          header, nav, .no-print { display: none !important; }
+          main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+          .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 10px !important; }
+          .id-card { page-break-inside: avoid; break-inside: avoid; border: 2px solid #1e293b !important; box-shadow: none !important; }
+        }
+      `}</style>
+
       {/* Top Navbar */}
-      <header className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md">
+      <header className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print">
         <div className="flex items-center space-x-3">
           <div className="bg-blue-600 p-2 rounded-lg">
             <Shield className="w-6 h-6 text-white" />
@@ -326,7 +339,7 @@ export default function App() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col md:flex-row">
         {/* Sidebar Navigation */}
-        <nav className="w-full md:w-64 bg-white border-r border-slate-200 p-4 space-y-1">
+        <nav className="w-full md:w-64 bg-white border-r border-slate-200 p-4 space-y-1 no-print">
           <button 
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
@@ -341,6 +354,14 @@ export default function App() {
           >
             <QrCode className="w-4 h-4 text-emerald-600" />
             <span>Imbas QR (Pintu Pagar)</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('print')}
+            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'print' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'}`}
+          >
+            <CreditCard className="w-4 h-4 text-indigo-600" />
+            <span>Cetak Kad ID / QR</span>
           </button>
 
           <button 
@@ -372,6 +393,110 @@ export default function App() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 max-w-7xl">
+          {/* TAB CETAK KAD ID / QR MURID */}
+          {activeTab === 'print' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 no-print bg-indigo-900 text-white p-6 rounded-2xl shadow-md">
+                <div>
+                  <h2 className="text-2xl font-bold">Penjana Kad Matrik & QR Murid</h2>
+                  <p className="text-indigo-200 text-xs mt-1">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <select 
+                    value={printClassFilter} 
+                    onChange={e => setPrintClassFilter(e.target.value)}
+                    className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
+                  >
+                    <option value="Semua">Semua Kelas ({students.length})</option>
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>Kelas {c}</option>
+                    ))}
+                  </select>
+
+                  <button 
+                    onClick={() => window.print()} 
+                    className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak Kad ID (A4)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ID CARDS GRID CONTAINER */}
+              <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-6">
+                {printFilteredStudents.map(s => {
+                  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
+                  
+                  return (
+                    <div 
+                      key={s.id} 
+                      className="id-card bg-white rounded-2xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
+                      style={{ minHeight: '230px' }}
+                    >
+                      {/* Card Header Design */}
+                      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-amber-400">
+                        <div className="flex items-center space-x-2">
+                          <div className="bg-amber-400 p-1.5 rounded-lg text-slate-900 font-black">
+                            <Shield className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-xs tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
+                            <p className="text-[9px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black tracking-widest">
+                          2026
+                        </span>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-4 flex items-center justify-between gap-3 bg-slate-50/50 flex-1">
+                        <div className="space-y-1.5 flex-1">
+                          <div>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                            <h4 className="font-black text-slate-900 text-sm leading-tight uppercase">{s.name}</h4>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="bg-blue-100 text-blue-900 text-[10px] font-black px-2 py-0.5 rounded border border-blue-300">
+                              ID: {s.id}
+                            </span>
+                            <span className="bg-emerald-100 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-300">
+                              KELAS: {s.class}
+                            </span>
+                          </div>
+
+                          <div className="pt-1 text-[10px] text-slate-600 space-y-0.5 border-t border-slate-200">
+                            <p><span className="font-bold text-slate-800">Waris:</span> {s.guardian}</p>
+                            <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
+                          </div>
+                        </div>
+
+                        {/* QR Code Container */}
+                        <div className="bg-white p-2 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
+                          <img 
+                            src={qrUrl} 
+                            alt={`QR ${s.id}`} 
+                            className="w-24 h-24 object-contain rounded"
+                          />
+                          <p className="text-[8px] font-mono font-bold text-slate-500 mt-1">{s.id}</p>
+                        </div>
+                      </div>
+
+                      {/* Card Footer Stripe */}
+                      <div className="bg-slate-900 px-4 py-1 flex items-center justify-between text-[8px] text-slate-400">
+                        <span>Kad ID Rasmi Sekolah SK Sungai Bayan</span>
+                        <span className="font-mono text-amber-400">E-HADIR DIGITAL</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* SCAN QR TAB */}
           {activeTab === 'scan' && (
             <div className="space-y-6 max-w-2xl mx-auto">
@@ -383,11 +508,9 @@ export default function App() {
                 <p className="text-emerald-200 text-xs mt-1">Halakan Kod QR Murid ke arah kamera untuk mencatat kehadiran hari ini secara automatik.</p>
               </div>
 
-              {/* Camera Container */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 <div id="qr-reader" className="w-full rounded-xl overflow-hidden border-2 border-dashed border-slate-300"></div>
 
-                {/* Manual Fallback Input */}
                 <form onSubmit={handleManualQrSubmit} className="flex gap-2 pt-2">
                   <input 
                     type="text" 
@@ -402,7 +525,6 @@ export default function App() {
                 </form>
               </div>
 
-              {/* Result Alert Box */}
               {scanResult && (
                 <div className={`p-5 rounded-2xl border shadow-md transition-all ${
                   scanResult.success ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-red-50 border-red-300 text-red-900'
