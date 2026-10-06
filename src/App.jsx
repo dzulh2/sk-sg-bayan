@@ -110,7 +110,29 @@ export default function App() {
 
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
+const [certFilterClass, setCertFilterClass] = useState('Semua');
+// Helper for Top Class Leaderboard
+  const getClassLeaderboard = () => {
+    return availableClasses
+      .map(cName => {
+        const stats = getDetailedClassStats(cName);
+        return { className: cName, percent: stats.percent, totalHadir: stats.totalHadir, totalStudents: stats.totalStudents };
+      })
+      .sort((a, b) => b.percent - a.percent);
+  };
 
+  // Helper for Perfect Attendance Students (Sijil 100%)
+  const getPerfectAttendanceStudents = () => {
+    const targetStudents = certFilterClass === 'Semua' 
+      ? students 
+      : students.filter(s => s.class === certFilterClass);
+
+    return targetStudents.filter(st => {
+      const studentRecords = attendance.filter(a => a.student_id === st.id);
+      if (studentRecords.length === 0) return true;
+      return !studentRecords.some(a => a.status === 'Tidak Hadir');
+    });
+  };
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
   // Auto Sync Data Murid
@@ -370,6 +392,7 @@ export default function App() {
 
   // Kiraan Statistik Perincian Kelas / Semua Kelas
   const getDetailedClassStats = (className) => {
+    
     // --- FEATURE 1: LEADERBOARD CALCULATIONS ---
   const getClassLeaderboard = () => {
     return availableClasses
@@ -661,6 +684,41 @@ export default function App() {
                 </div>
               </div>
               {/* CARTA & MAKLUMAT TERPERINCI + SENARAI NAMA TIDAK HADIR */}
+              {/* TOP 3 CLASS LEADERBOARD WIDGET */}
+              <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 rounded-2xl p-5 text-white shadow-md">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Trophy className="w-6 h-6 text-yellow-200" />
+                  <h3 className="font-extrabold text-lg tracking-wide">Papan Pendahulu Kehadiran Kelas Terbaik ({selectedDate})</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {getClassLeaderboard().slice(0, 3).map((item, index) => {
+                    const rankBadges = [
+                      { rank: '1', bg: 'bg-yellow-400 text-slate-900' },
+                      { rank: '2', bg: 'bg-slate-200 text-slate-900' },
+                      { rank: '3', bg: 'bg-amber-700 text-white' }
+                    ];
+                    const badge = rankBadges[index];
+
+                    return (
+                      <div key={item.className} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold text-amber-100 uppercase">Kedudukan #{index + 1}</p>
+                          <h4 className="text-lg font-black">{item.className}</h4>
+                          <p className="text-xs text-amber-200">{item.totalHadir} / {item.totalStudents} Murid</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`inline-block w-8 h-8 rounded-full text-center leading-8 font-black text-sm ${badge.bg} mb-1 shadow-sm`}>
+                            #{badge.rank}
+                          </span>
+                          <p className="text-xl font-black text-yellow-300">{item.percent}%</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS */}
@@ -925,6 +983,7 @@ export default function App() {
                   <h2 className="text-2xl font-bold">Penjana Kad Matrik & QR Murid</h2>
                   <p className="text-indigo-200 text-xs mt-1">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
                 </div>
+
 {/* PENJANA SIJIL KEHADIRAN 100% */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 no-print">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -998,6 +1057,7 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              
                 <div className="flex items-center space-x-3">
                   <select 
                     value={printClassFilter} 
