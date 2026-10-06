@@ -1,24 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Flashlight, Volume2
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Volume2
 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // --- INITIAL DUMMY DATA ---
 const INITIAL_STUDENTS = [
-  { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'Zulkifli Ahmad', phone: '012-3456789', qr_token: 'STU-2026-0001' },
-  { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'Hassan Basri', phone: '013-9876543', qr_token: 'STU-2026-0002' },
-  { id: 'SB20260003', name: 'MUHAMMAD DANIAL BIN FARID', year: '4', class: '4 Cemerlang', gender: 'L', status: 'Active', guardian: 'Farid Kamil', phone: '017-1122334', qr_token: 'STU-2026-0003' },
-  { id: 'SB20260004', name: 'SITI NURHALIZA BINTI AMIR', year: '4', class: '4 Cemerlang', gender: 'P', status: 'Active', guardian: 'Amir Hamzah', phone: '019-8877665', qr_token: 'STU-2026-0004' }
+  { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'Zulkifli Ahmad', phone: '012-3456789', qr_token: 'SB20260001' },
+  { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'Hassan Basri', phone: '013-9876543', qr_token: 'SB20260002' },
+  { id: 'SB20260003', name: 'MUHAMMAD DANIAL BIN FARID', year: '4', class: '4 Cemerlang', gender: 'L', status: 'Active', guardian: 'Farid Kamil', phone: '017-1122334', qr_token: 'SB20260003' },
+  { id: 'SB20260004', name: 'SITI NURHALIZA BINTI AMIR', year: '4', class: '4 Cemerlang', gender: 'P', status: 'Active', guardian: 'Amir Hamzah', phone: '019-8877665', qr_token: 'SB20260004' }
 ];
 
 const INITIAL_ATTENDANCE = [
-  { student_id: 'SB20260001', date: '2026-10-06', status: 'Hadir', method: 'QR', time: '07:15 AM' },
-  { student_id: 'SB20260002', date: '2026-10-06', status: 'Tidak Hadir', method: 'Manual', time: '-' }
+  { student_id: 'SB20260001', date: '2026-10-06', status: 'Hadir', method: 'QR' },
+  { student_id: 'SB20260002', date: '2026-10-06', status: 'Tidak Hadir', method: 'Manual' },
+  { student_id: 'SB20260003', date: '2026-10-06', status: 'Bersebab', method: 'Manual' }
 ];
 
-// CSV Parser Helper Function
+// CSV Parser Helper
 const parseCSV = (csvText) => {
   if (!csvText) return [];
   const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
@@ -27,7 +28,7 @@ const parseCSV = (csvText) => {
   const parsedStudents = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"\vert{}"$/g, ''));
+    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"|"$/g, ''));
     
     const cleanValues = values.filter(v => v !== '');
     if (cleanValues.length < 2) continue;
@@ -35,6 +36,7 @@ const parseCSV = (csvText) => {
     const firstCol = cleanValues[0] || '';
     const secondCol = cleanValues[1] || '';
 
+    // Abaikan baris tajuk
     if (
       firstCol.toLowerCase().includes('no id') || 
       firstCol.toLowerCase().includes('id murid') ||
@@ -43,16 +45,18 @@ const parseCSV = (csvText) => {
       continue;
     }
 
+    const studentId = cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`;
+
     parsedStudents.push({
-      id: cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`,
+      id: studentId,
       name: cleanValues[1] || 'TANPA NAMA',
       gender: cleanValues[2] || 'L',
       year: cleanValues[3] || '1',
-      class: cleanValues[4] || '1 Bestari',
+      class: cleanValues[4] || '1 FAJAR',
       guardian: cleanValues[5] || '-',
       phone: cleanValues[6] || '-',
       status: 'Active',
-      qr_token: cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`
+      qr_token: studentId
     });
   }
   return parsedStudents;
@@ -75,7 +79,15 @@ export default function App() {
     return localStorage.getItem('sksb_sheet_url') || '';
   });
 
-  const [attendance, setAttendance] = useState(INITIAL_ATTENDANCE);
+  const [attendance, setAttendance] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sksb_attendance');
+      return saved ? JSON.parse(saved) : INITIAL_ATTENDANCE;
+    } catch (e) {
+      return INITIAL_ATTENDANCE;
+    }
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [adminId, setAdminId] = useState('');
@@ -85,13 +97,11 @@ export default function App() {
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
 
-  // --- QR SCANNER STATES & REFS ---
-  const [isScanning, setIsScanning] = useState(false);
-  const [lastScannedStudent, setLastScannedStudent] = useState(null);
-  const [scanFeedback, setScanFeedback] = useState(null);
-  const html5QrCodeRef = useRef(null);
+  // QR Scanner Feedbacks
+  const [scanResult, setScanResult] = useState(null);
+  const [manualQrInput, setManualQrInput] = useState('');
 
-  // Auto Sync dari Google Sheets apabila web dibuka
+  // Auto Sync apabila web dibuka
   useEffect(() => {
     const savedUrl = localStorage.getItem('sksb_sheet_url');
     if (savedUrl) {
@@ -108,91 +118,82 @@ export default function App() {
     }
   }, []);
 
-  // --- QR SCANNER LOGIC ---
-  const startScanner = async () => {
-    setIsScanning(true);
-    setScanFeedback(null);
-
-    setTimeout(async () => {
-      try {
-        const qrCodeScanner = new Html5Qrcode("reader");
-        html5QrCodeRef.current = qrCodeScanner;
-
-        await qrCodeScanner.start(
-          { facingMode: "environment" }, // Kamera belakang
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            handleQrCodeScanned(decodedText);
-          },
-          (errorMessage) => {
-            // Ignore frame scan errors
-          }
-        );
-      } catch (err) {
-        console.error("Camera access error:", err);
-        setScanFeedback({ type: 'error', message: 'Gagal mengakses kamera. Pastikan kebenaran kamera dibenarkan.' });
-        setIsScanning(false);
-      }
-    }, 300);
-  };
-
-  const stopScanner = async () => {
-    if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-      try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-      } catch (err) {
-        console.error("Error stopping scanner", err);
-      }
-    }
-    setIsScanning(false);
-  };
-
+  // Simpan rekod kehadiran setiap kali dikemaskini
   useEffect(() => {
+    localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
+  }, [attendance]);
+
+  // QR Scanner Component Logic
+  useEffect(() => {
+    let scanner = null;
+    if (activeTab === 'scan') {
+      scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ]
+        },
+        /* verbose= */ false
+      );
+
+      scanner.render(
+        (decodedText) => {
+          handleQrScanned(decodedText);
+        },
+        (errorMessage) => {
+          // Scanning in progress...
+        }
+      );
+    }
+
     return () => {
-      stopScanner();
+      if (scanner) {
+        scanner.clear().catch(error => console.error("Failed to clear scanner", error));
+      }
     };
-  }, []);
+  }, [activeTab, students]);
 
-  // Handle scanned QR Data
-  const handleQrCodeScanned = (scannedText) => {
+  // Fungsi Proses Imbasan QR
+  const handleQrScanned = (scannedCode) => {
     const today = '2026-10-06';
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const cleanCode = scannedCode.trim();
 
-    // Cari murid berdasarkan ID atau QR Token
-    const student = students.find(s => 
-      s.id.toLowerCase() === scannedText.toLowerCase() || 
-      s.qr_token.toLowerCase() === scannedText.toLowerCase()
+    // Cari murid mengikut ID atau QR Token
+    const foundStudent = students.find(s => 
+      s.id.toLowerCase() === cleanCode.toLowerCase() || 
+      s.qr_token.toLowerCase() === cleanCode.toLowerCase()
     );
 
-    if (student) {
-      setLastScannedStudent(student);
-      
-      // Kemaskini kehadiran murid
+    if (foundStudent) {
       setAttendance(prev => {
-        const filtered = prev.filter(a => !(a.student_id === student.id && a.date === today));
-        return [...filtered, { 
-          student_id: student.id, 
-          date: today, 
-          status: 'Hadir', 
-          method: 'QR', 
-          time: currentTime 
-        }];
+        const filtered = prev.filter(a => !(a.student_id === foundStudent.id && a.date === today));
+        return [...filtered, { student_id: foundStudent.id, date: today, status: 'Hadir', method: 'QR Kamera' }];
       });
 
-      setScanFeedback({ 
-        type: 'success', 
-        message: `Hadir: ${student.name} (${student.class}) pada ${currentTime}` 
+      setScanResult({
+        success: true,
+        student: foundStudent,
+        message: `KEHADIRAN DIREKODKAN: ${foundStudent.name} (${foundStudent.class})`
       });
     } else {
-      setScanFeedback({ 
-        type: 'error', 
-        message: `Kod QR tidak dikenali: "${scannedText}"` 
+      setScanResult({
+        success: false,
+        student: null,
+        message: `KOD QR TIDAK DITEMUI: "${cleanCode}" tiada dalam senarai murid.`
       });
     }
   };
 
-  // Live Sync Manual
+  const handleManualQrSubmit = (e) => {
+    e.preventDefault();
+    if (manualQrInput) {
+      handleQrScanned(manualQrInput);
+      setManualQrInput('');
+    }
+  };
+
+  // Sync Google Sheets
   const handleGoogleSheetsSync = async () => {
     if (!sheetUrl.trim()) {
       setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
@@ -259,23 +260,20 @@ export default function App() {
 
   const toggleAttendance = (studentId, status) => {
     const today = '2026-10-06';
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     setAttendance(prev => {
       const filtered = prev.filter(a => !(a.student_id === studentId && a.date === today));
-      return [...filtered, { student_id: studentId, date: today, status, method: 'Manual', time: currentTime }];
+      return [...filtered, { student_id: studentId, date: today, status, method: 'Manual' }];
     });
   };
 
   const markAllPresent = () => {
     const today = '2026-10-06';
-    const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const classStudents = students.filter(s => s.class === selectedClass);
     const updated = classStudents.map(s => ({
       student_id: s.id,
       date: today,
       status: 'Hadir',
-      method: 'Manual',
-      time: currentTime
+      method: 'Manual'
     }));
     setAttendance(prev => {
       const rest = prev.filter(a => !classStudents.some(cs => cs.id === a.student_id && a.date === today));
@@ -330,7 +328,7 @@ export default function App() {
         {/* Sidebar Navigation */}
         <nav className="w-full md:w-64 bg-white border-r border-slate-200 p-4 space-y-1">
           <button 
-            onClick={() => { stopScanner(); setActiveTab('dashboard'); }}
+            onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <Home className="w-4 h-4" />
@@ -338,15 +336,15 @@ export default function App() {
           </button>
 
           <button 
-            onClick={() => { stopScanner(); setActiveTab('qr-scanner'); }}
-            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'qr-scanner' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+            onClick={() => setActiveTab('scan')}
+            className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'scan' ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
           >
-            <QrCode className="w-4 h-4 text-blue-600" />
-            <span>Imbas QR (Kamera)</span>
+            <QrCode className="w-4 h-4 text-emerald-600" />
+            <span>Imbas QR (Pintu Pagar)</span>
           </button>
 
           <button 
-            onClick={() => { stopScanner(); setActiveTab('attendance'); }}
+            onClick={() => setActiveTab('attendance')}
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'attendance' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <Calendar className="w-4 h-4" />
@@ -354,7 +352,7 @@ export default function App() {
           </button>
 
           <button 
-            onClick={() => { stopScanner(); setActiveTab('students'); }}
+            onClick={() => setActiveTab('students')}
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'students' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             <Users className="w-4 h-4" />
@@ -363,7 +361,7 @@ export default function App() {
 
           {isAdmin && (
             <button 
-              onClick={() => { stopScanner(); setActiveTab('admin'); }}
+              onClick={() => setActiveTab('admin')}
               className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'admin' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               <Settings className="w-4 h-4" />
@@ -374,45 +372,355 @@ export default function App() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 max-w-7xl">
-          {/* QR SCANNER TAB */}
-          {activeTab === 'qr-scanner' && (
+          {/* SCAN QR TAB */}
+          {activeTab === 'scan' && (
             <div className="space-y-6 max-w-2xl mx-auto">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                  <div className="text-left">
-                    <h2 className="text-lg font-bold text-slate-800">Pengimbas QR Kehadiran</h2>
-                    <p className="text-xs text-slate-500">Halakan kamera telefon / peranti ke Kod QR Kad Murid.</p>
-                  </div>
-
-                  {!isScanning ? (
-                    <button 
-                      onClick={startScanner}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center space-x-2 transition shadow-sm"
-                    >
-                      <Camera className="w-4 h-4" />
-                      <span>Buka Kamera</span>
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={stopScanner}
-                      className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center space-x-2 transition shadow-sm"
-                    >
-                      <span>Tutup Kamera</span>
-                    </button>
-                  )}
+              <div className="bg-emerald-900 text-white p-6 rounded-2xl shadow-md text-center">
+                <div className="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-2 border border-emerald-400/30">
+                  <Camera className="w-6 h-6 text-emerald-300" />
                 </div>
+                <h2 className="text-2xl font-bold">Pengimbas Kehadiran Pintu Pagar</h2>
+                <p className="text-emerald-200 text-xs mt-1">Halakan Kod QR Murid ke arah kamera untuk mencatat kehadiran hari ini secara automatik.</p>
+              </div>
 
-                {/* Scanner Container */}
-                <div className="relative bg-slate-900 rounded-xl overflow-hidden min-h-[300px] flex items-center justify-center border border-slate-800">
-                  <div id="reader" className="w-full h-full"></div>
-                  
-                  {!isScanning && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3 bg-slate-900/90 text-white">
-                      <QrCode className="w-16 h-16 text-blue-400 animate-pulse" />
-                      <p className="text-sm font-medium">Kamera Belum Diaktifkan</p>
-                      <p className="text-xs text-slate-400 max-w-xs">Tekan butang "Buka Kamera" di atas untuk mula mengimbas kehadiran murid.</p>
+              {/* Camera Container */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div id="qr-reader" className="w-full rounded-xl overflow-hidden border-2 border-dashed border-slate-300"></div>
+
+                {/* Manual Fallback Input */}
+                <form onSubmit={handleManualQrSubmit} className="flex gap-2 pt-2">
+                  <input 
+                    type="text" 
+                    value={manualQrInput}
+                    onChange={e => setManualQrInput(e.target.value)}
+                    placeholder="Atau taip No ID murid secara manual..."
+                    className="flex-1 px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                  <button type="submit" className="bg-emerald-600 text-white text-xs font-semibold px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                    Tanda Hadir
+                  </button>
+                </form>
+              </div>
+
+              {/* Result Alert Box */}
+              {scanResult && (
+                <div className={`p-5 rounded-2xl border shadow-md transition-all ${
+                  scanResult.success ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-red-50 border-red-300 text-red-900'
+                }`}>
+                  <div className="flex items-start space-x-3">
+                    {scanResult.success ? (
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <h4 className="font-bold text-base">{scanResult.success ? 'BERJAYA IMBAS' : 'RALAT IMBASAN'}</h4>
+                      <p className="text-sm mt-1">{scanResult.message}</p>
+                      {scanResult.student && (
+                        <div className="mt-3 bg-white/80 p-3 rounded-lg border border-emerald-200 text-xs space-y-1 text-slate-700">
+                          <p><span className="font-semibold">Nama:</span> {scanResult.student.name}</p>
+                          <p><span className="font-semibold">Kelas:</span> {scanResult.student.class}</p>
+                          <p><span className="font-semibold">Waris:</span> {scanResult.student.guardian} ({scanResult.student.phone})</p>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* DASHBOARD TAB */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran Hari Ini</h2>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hadir</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">
+                    {attendance.filter(a => a.status === 'Hadir').length}
+                  </p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">
+                    {attendance.filter(a => a.status === 'Tidak Hadir').length}
+                  </p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bersebab</p>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">
+                    {attendance.filter(a => a.status === 'Bersebab').length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Student Quick List */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-800">Senarai Ringkas Murid</h3>
+                  <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  {students.map(s => {
+                    const att = attendance.find(a => a.student_id === s.id);
+                    return (
+                      <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                        <div>
+                          <p className="font-medium text-slate-900">{s.name}</p>
+                          <p className="text-xs text-slate-500">{s.id} • Kelas: {s.class}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            att?.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
+                            att?.status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
+                            att?.status === 'Bersebab' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {att ? att.status : 'Belum Rekod'}
+                          </span>
+                          {att?.method && <p className="text-[10px] text-slate-400 mt-0.5">{att.method}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CLASS ATTENDANCE TAB */}
+          {activeTab === 'attendance' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Kehadiran Kelas Manual</h2>
+                  <p className="text-sm text-slate-500">Pilih kelas untuk kemaskini status kehadiran murid hari ini.</p>
+                </div>
+                
+                <div className="flex items-center space-x-3">
+                  <select 
+                    value={selectedClass} 
+                    onChange={e => setSelectedClass(e.target.value)}
+                    className="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg px-3 py-2 font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+
+                  <button 
+                    onClick={markAllPresent}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm"
+                  >
+                    Tanda Semua Hadir
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Murid</th>
+                      <th className="px-4 py-3">Kelas</th>
+                      <th className="px-4 py-3 text-center">Status Kehadiran Hari Ini</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {students.filter(s => s.class === selectedClass).map(s => {
+                      const att = attendance.find(a => a.student_id === s.id);
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/80">
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-slate-900">{s.name}</p>
+                            <p className="text-xs text-slate-400">{s.id}</p>
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600">{s.class}</td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center justify-center space-x-2">
+                              <button 
+                                onClick={() => toggleAttendance(s.id, 'Hadir')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Hadir' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50'}`}
+                              >
+                                Hadir
+                              </button>
+                              <button 
+                                onClick={() => toggleAttendance(s.id, 'Tidak Hadir')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Tidak Hadir' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50'}`}
+                              >
+                                Tidak Hadir
+                              </button>
+                              <button 
+                                onClick={() => toggleAttendance(s.id, 'Bersebab')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Bersebab' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-purple-50'}`}
+                              >
+                                Bersebab
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* STUDENTS DIRECTORY TAB */}
+          {activeTab === 'students' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-800">Direktori Murid ({students.length})</h2>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="Cari nama / ID murid..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.includes(searchQuery)).map(s => (
+                  <div key={s.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-bold text-slate-900">{s.name}</h3>
+                        <p className="text-xs text-blue-600 font-semibold">{s.id} • Kelas {s.class}</p>
+                      </div>
+                      <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">
+                        Jantina: {s.gender}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-600 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                      <p><span className="font-semibold text-slate-700">Waris:</span> {s.guardian}</p>
+                      <p><span className="font-semibold text-slate-700">Telefon:</span> {s.phone}</p>
+                      <p><span className="font-semibold text-slate-700">QR Identity:</span> {s.qr_token}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN HUB TAB */}
+          {activeTab === 'admin' && isAdmin && (
+            <div className="space-y-6">
+              <div className="bg-purple-900 text-white p-6 rounded-2xl shadow-md">
+                <h2 className="text-2xl font-bold">Hub Pentadbir Sistem (Admin)</h2>
+                <p className="text-purple-200 text-sm mt-1">Akses penuh pengurusan data murid, tetapan sekolah, dan selenggara rekod.</p>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-800 text-lg">Google Sheets Live Sync</h3>
+                <p className="text-sm text-slate-600">
+                  Tampal pautan <strong>Publish to Web (CSV)</strong> Google Sheets anda di bawah untuk menarik rekod murid terkini secara automatik.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input 
+                    type="text" 
+                    value={sheetUrl}
+                    onChange={e => setSheetUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                  <button 
+                    onClick={handleGoogleSheetsSync}
+                    disabled={syncStatus.loading}
+                    className="flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-sm font-semibold px-5 py-2 rounded-lg transition shadow-sm"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${syncStatus.loading ? 'animate-spin' : ''}`} />
+                    <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Sekarang'}</span>
+                  </button>
                 </div>
 
-                {/* Scan Feedback Status */}
+                {syncStatus.message && (
+                  <div className={`p-4 rounded-lg text-xs font-medium flex items-center space-x-2 ${
+                    syncStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {syncStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                    <span>{syncStatus.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* ADMIN LOGIN MODAL */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5">
+            <div className="text-center space-y-1">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                <Shield className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Log Masuk Pentadbir</h3>
+              <p className="text-xs text-slate-500">Masukkan ID dan kata laluan khas Admin sekolah.</p>
+            </div>
+
+            {loginError && (
+              <div className="bg-red-50 text-red-700 text-xs p-3 rounded-lg border border-red-200 font-medium text-center">
+                {loginError}
+              </div>
+            )}
+
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">ID Pengguna</label>
+                <input 
+                  type="text" 
+                  value={adminId}
+                  onChange={e => setAdminId(e.target.value)}
+                  placeholder="adminsksb"
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Kata Laluan</label>
+                <input 
+                  type="password" 
+                  value={adminPass}
+                  onChange={e => setAdminPass(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center space-x-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowLoginModal(false)}
+                  className="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg text-sm font-semibold hover:bg-slate-200 transition"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+                >
+                  Log Masuk
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
