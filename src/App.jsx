@@ -8,8 +8,8 @@ import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 // =========================================================================
 // PAUTAN GOOGLE SHEETS & APPS SCRIPT ANDA
 // =========================================================================
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ.../pub?output=csv"; 
-const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycb.../exec"; 
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
+const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbwp21xM60fM1C9a8DCYC2o3ar10-NvYHWTFoWWddOOij4ssLLjbbcSTJHIG-Rj-0Ifq/exec"; 
 
 // --- INITIAL DUMMY DATA ---
 const INITIAL_STUDENTS = [
