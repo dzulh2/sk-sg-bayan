@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
+  CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle, Award 
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 // =========================================================================
-// PAUTAN GOOGLE SHEETS & APPS SCRIPT ANDA
+// PAUTAN GOOGLE SHEETS & APPS SCRIPT
 // =========================================================================
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
 const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbwp21xM60fM1C9a8DCYC2o3ar10-NvYHWTFoWWddOOij4ssLLjbbcSTJHIG-Rj-0Ifq/exec"; 
@@ -104,35 +105,14 @@ export default function App() {
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
   const [dashboardDetailClass, setDashboardDetailClass] = useState('Semua Kelas');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
+  const [certFilterClass, setCertFilterClass] = useState('Semua');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
   const [saveMessage, setSaveMessage] = useState('');
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
 
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
-const [certFilterClass, setCertFilterClass] = useState('Semua');
-// Helper for Top Class Leaderboard
-  const getClassLeaderboard = () => {
-    return availableClasses
-      .map(cName => {
-        const stats = getDetailedClassStats(cName);
-        return { className: cName, percent: stats.percent, totalHadir: stats.totalHadir, totalStudents: stats.totalStudents };
-      })
-      .sort((a, b) => b.percent - a.percent);
-  };
 
-  // Helper for Perfect Attendance Students (Sijil 100%)
-  const getPerfectAttendanceStudents = () => {
-    const targetStudents = certFilterClass === 'Semua' 
-      ? students 
-      : students.filter(s => s.class === certFilterClass);
-
-    return targetStudents.filter(st => {
-      const studentRecords = attendance.filter(a => a.student_id === st.id);
-      if (studentRecords.length === 0) return true;
-      return !studentRecords.some(a => a.status === 'Tidak Hadir');
-    });
-  };
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
   // Auto Sync Data Murid
@@ -171,7 +151,7 @@ const [certFilterClass, setCertFilterClass] = useState('Semua');
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
 
-// QR Scanner Logic (Diperbaiki untuk elak white screen)
+  // QR Scanner Logic
   useEffect(() => {
     let scanner = null;
     let timer = null;
@@ -391,44 +371,17 @@ const [certFilterClass, setCertFilterClass] = useState('Semua');
     }, 5000);
   };
 
-const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter)
+  const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter)
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
   const filteredAttendanceByDate = attendance.filter(a => a.date === selectedDate);
 
-  // Peratusan Kehadiran Keseluruhan Sekolah
   const totalSchoolStudents = students.length;
   const totalSchoolHadir = filteredAttendanceByDate.filter(a => a.status === 'Hadir').length;
   const totalSchoolPercent = totalSchoolStudents > 0 ? Math.round((totalSchoolHadir / totalSchoolStudents) * 100) : 0;
 
-  // Kiraan Statistik Perincian Kelas / Semua Kelas
   const getDetailedClassStats = (className) => {
-    
-    // --- FEATURE 1: LEADERBOARD CALCULATIONS ---
-  const getClassLeaderboard = () => {
-    return availableClasses
-      .map(cName => {
-        const stats = getDetailedClassStats(cName);
-        return { className: cName, percent: stats.percent, totalHadir: stats.totalHadir, totalStudents: stats.totalStudents };
-      })
-      .sort((a, b) => b.percent - a.percent);
-  };
-
-  // --- FEATURE 2: PERFECT ATTENDANCE STUDENTS ---
-  const [certFilterClass, setCertFilterClass] = useState('Semua');
-
-  const getPerfectAttendanceStudents = () => {
-    const targetStudents = certFilterClass === 'Semua' 
-      ? students 
-      : students.filter(s => s.class === certFilterClass);
-
-    return targetStudents.filter(st => {
-      const studentRecords = attendance.filter(a => a.student_id === st.id);
-      if (studentRecords.length === 0) return true; // Default present if no absence recorded
-      return !studentRecords.some(a => a.status === 'Tidak Hadir');
-    });
-  };
     const classStudents = className === 'Semua Kelas' 
       ? students 
       : students.filter(s => s.class === className);
@@ -455,7 +408,7 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
     classStudents.forEach(st => {
       const att = filteredAttendanceByDate.find(a => a.student_id === st.id);
       const isMale = st.gender === 'L';
-      const status = att ? att.status : 'Tidak Hadir'; // Default Tidak Hadir jika belum direkod
+      const status = att ? att.status : 'Tidak Hadir';
 
       if (isMale) maleTotal++;
       else femaleTotal++;
@@ -492,6 +445,27 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
       maleTotal, maleHadir, maleTidakHadir, maleBersebab, maleAbsentList,
       femaleTotal, femaleHadir, femaleTidakHadir, femaleBersebab, femaleAbsentList
     };
+  };
+
+  const getClassLeaderboard = () => {
+    return availableClasses
+      .map(cName => {
+        const stats = getDetailedClassStats(cName);
+        return { className: cName, percent: stats.percent, totalHadir: stats.totalHadir, totalStudents: stats.totalStudents };
+      })
+      .sort((a, b) => b.percent - a.percent);
+  };
+
+  const getPerfectAttendanceStudents = () => {
+    const targetStudents = certFilterClass === 'Semua' 
+      ? students 
+      : students.filter(s => s.class === certFilterClass);
+
+    return targetStudents.filter(st => {
+      const studentRecords = attendance.filter(a => a.student_id === st.id);
+      if (studentRecords.length === 0) return true;
+      return !studentRecords.some(a => a.status === 'Tidak Hadir');
+    });
   };
 
   return (
@@ -631,7 +605,7 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                 </div>
               </div>
               
-              {/* Stat Cards Termasuk Peratusan Keseluruhan Sekolah */}
+              {/* Stat Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
@@ -661,41 +635,7 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                   <p className="text-2xl font-black text-amber-400 mt-1">{totalSchoolPercent}%</p>
                 </div>
               </div>
-{/* TOP 3 CLASS LEADERBOARD WIDGET */}
-              <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 rounded-2xl p-5 text-white shadow-md">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Trophy className="w-6 h-6 text-yellow-200 animate-bounce" />
-                  <h3 className="font-extrabold text-lg tracking-wide">Papan Pendahulu Kehadiran Kelas Terbaik ({selectedDate})</h3>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {getClassLeaderboard().slice(0, 3).map((item, index) => {
-                    const rankBadges = [
-                      { rank: '1', bg: 'bg-yellow-400 text-slate-900', border: 'border-yellow-200' },
-                      { rank: '2', bg: 'bg-slate-200 text-slate-900', border: 'border-slate-300' },
-                      { rank: '3', bg: 'bg-amber-700 text-white', border: 'border-amber-800' }
-                    ];
-                    const badge = rankBadges[index];
-
-                    return (
-                      <div key={item.className} className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-semibold text-amber-100 uppercase">Kedudukan #{index + 1}</p>
-                          <h4 className="text-lg font-black">{item.className}</h4>
-                          <p className="text-xs text-amber-200">{item.totalHadir} / {item.totalStudents} Murid</p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`inline-block w-8 h-8 rounded-full text-center leading-8 font-black text-sm ${badge.bg} mb-1 shadow-sm`}>
-                            #{badge.rank}
-                          </span>
-                          <p className="text-xl font-black text-yellow-300">{item.percent}%</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* CARTA & MAKLUMAT TERPERINCI + SENARAI NAMA TIDAK HADIR */}
               {/* TOP 3 CLASS LEADERBOARD WIDGET */}
               <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 rounded-2xl p-5 text-white shadow-md">
                 <div className="flex items-center space-x-2 mb-4">
@@ -731,6 +671,7 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                 </div>
               </div>
 
+              {/* CARTA & MAKLUMAT TERPERINCI */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS */}
@@ -791,7 +732,6 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                       <h3 className="font-black text-slate-900 text-lg">{dashboardDetailClass}</h3>
                     </div>
 
-                    {/* DROPDOWN KELAS DENGAN PILIHAN "SEMUA KELAS" */}
                     <select 
                       value={dashboardDetailClass} 
                       onChange={e => setDashboardDetailClass(e.target.value)}
@@ -818,7 +758,6 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                             </span>
                           </div>
 
-                          {/* SENARAI MURID LELAKI TIDAK HADIR */}
                           <div className="bg-white p-3 rounded-lg border border-blue-100 space-y-1.5">
                             <p className="text-[10px] font-bold text-red-600 uppercase flex items-center gap-1">
                               <UserX className="w-3.5 h-3.5" />
@@ -850,7 +789,6 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                             </span>
                           </div>
 
-                          {/* SENARAI MURID PEREMPUAN TIDAK HADIR */}
                           <div className="bg-white p-3 rounded-lg border border-pink-100 space-y-1.5">
                             <p className="text-[10px] font-bold text-red-600 uppercase flex items-center gap-1">
                               <UserX className="w-3.5 h-3.5" />
@@ -987,7 +925,7 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
             </div>
           )}
 
-          {/* TAB CETAK KAD ID / QR MURID */}
+          {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
           {activeTab === 'print' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 no-print bg-indigo-900 text-white p-6 rounded-2xl shadow-md">
@@ -996,7 +934,29 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                   <p className="text-indigo-200 text-xs mt-1">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
                 </div>
 
-{/* PENJANA SIJIL KEHADIRAN 100% */}
+                <div className="flex items-center space-x-3">
+                  <select 
+                    value={printClassFilter} 
+                    onChange={e => setPrintClassFilter(e.target.value)}
+                    className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
+                  >
+                    <option value="Semua">Semua Kelas ({students.length})</option>
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>Kelas {c}</option>
+                    ))}
+                  </select>
+
+                  <button 
+                    onClick={() => window.print()} 
+                    className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak Kad ID (A4)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* PENJANA SIJIL KEHADIRAN 100% */}
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 no-print">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-3">
@@ -1068,28 +1028,6 @@ const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter
                     </div>
                   </div>
                 ))}
-              </div>
-
-                <div className="flex items-center space-x-3">
-                  <select 
-                    value={printClassFilter} 
-                    onChange={e => setPrintClassFilter(e.target.value)}
-                    className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-lg outline-none"
-                  >
-                    <option value="Semua">Semua Kelas ({students.length})</option>
-                    {availableClasses.map(c => (
-                      <option key={c} value={c}>Kelas {c}</option>
-                    ))}
-                  </select>
-
-                  <button 
-                    onClick={() => window.print()} 
-                    className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2 rounded-lg transition shadow-md"
-                  >
-                    <Printer className="w-4 h-4" />
-                    <span>Cetak Kad ID (A4)</span>
-                  </button>
-                </div>
               </div>
 
               {/* ID CARDS GRID CONTAINER */}
