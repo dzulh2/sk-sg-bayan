@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
-  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard
+  Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, CreditCard, Save
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -62,6 +62,12 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // Tarikh Pilihan (Default: Hari Ini YYYY-MM-DD)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
   const [students, setStudents] = useState(() => {
     try {
       const saved = localStorage.getItem('sksb_students');
@@ -93,12 +99,13 @@ export default function App() {
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
+  const [saveMessage, setSaveMessage] = useState('');
 
   // QR Scanner Feedbacks
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // Auto Sync dari Google Sheets apabila web dibuka
+  // Auto Sync dari Google Sheets
   useEffect(() => {
     const savedUrl = localStorage.getItem('sksb_sheet_url');
     if (savedUrl) {
@@ -147,11 +154,10 @@ export default function App() {
         scanner.clear().catch(error => console.error("Failed to clear scanner", error));
       }
     };
-  }, [activeTab, students]);
+  }, [activeTab, students, selectedDate]);
 
   // Handle QR Code Scan
   const handleQrScanned = (scannedCode) => {
-    const today = '2026-10-06';
     const cleanCode = scannedCode.trim();
 
     const foundStudent = students.find(s => 
@@ -161,14 +167,14 @@ export default function App() {
 
     if (foundStudent) {
       setAttendance(prev => {
-        const filtered = prev.filter(a => !(a.student_id === foundStudent.id && a.date === today));
-        return [...filtered, { student_id: foundStudent.id, date: today, status: 'Hadir', method: 'QR Kamera' }];
+        const filtered = prev.filter(a => !(a.student_id === foundStudent.id && a.date === selectedDate));
+        return [...filtered, { student_id: foundStudent.id, date: selectedDate, status: 'Hadir', method: 'QR Kamera' }];
       });
 
       setScanResult({
         success: true,
         student: foundStudent,
-        message: `KEHADIRAN DIREKODKAN: ${foundStudent.name} (${foundStudent.class})`
+        message: `KEHADIRAN DIREKODKAN (${selectedDate}): ${foundStudent.name} (${foundStudent.class})`
       });
     } else {
       setScanResult({
@@ -187,7 +193,7 @@ export default function App() {
     }
   };
 
-  // Sync Google Sheets Manual
+  // Sync Google Sheets
   const handleGoogleSheetsSync = async () => {
     if (!sheetUrl.trim()) {
       setSyncStatus({ loading: false, success: false, message: 'Sila masukkan pautan terbitan CSV Google Sheets terlebih dahulu.' });
@@ -253,26 +259,32 @@ export default function App() {
   };
 
   const toggleAttendance = (studentId, status) => {
-    const today = '2026-10-06';
     setAttendance(prev => {
-      const filtered = prev.filter(a => !(a.student_id === studentId && a.date === today));
-      return [...filtered, { student_id: studentId, date: today, status, method: 'Manual' }];
+      const filtered = prev.filter(a => !(a.student_id === studentId && a.date === selectedDate));
+      return [...filtered, { student_id: studentId, date: selectedDate, status, method: 'Manual' }];
     });
   };
 
   const markAllPresent = () => {
-    const today = '2026-10-06';
     const classStudents = students.filter(s => s.class === selectedClass);
     const updated = classStudents.map(s => ({
       student_id: s.id,
-      date: today,
+      date: selectedDate,
       status: 'Hadir',
       method: 'Manual'
     }));
     setAttendance(prev => {
-      const rest = prev.filter(a => !classStudents.some(cs => cs.id === a.student_id && a.date === today));
+      const rest = prev.filter(a => !classStudents.some(cs => cs.id === a.student_id && a.date === selectedDate));
       return [...rest, ...updated];
     });
+  };
+
+  const handleSaveAttendance = () => {
+    localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
+    setSaveMessage(`Rekod kehadiran kelas ${selectedClass} (${selectedDate}) telah disimpan!`);
+    setTimeout(() => {
+      setSaveMessage('');
+    }, 4000);
   };
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
@@ -280,6 +292,9 @@ export default function App() {
   const printFilteredStudents = printClassFilter === 'Semua' 
     ? students 
     : students.filter(s => s.class === printClassFilter);
+
+  // Rekod kehadiran pada tarikh pilihan
+  const filteredAttendanceByDate = attendance.filter(a => a.date === selectedDate);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
@@ -296,7 +311,6 @@ export default function App() {
       {/* Top Navbar */}
       <header className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print">
         <div className="flex items-center space-x-3">
-          {/* Logo Sekolah Bersaiz Kemas */}
           <div className="bg-white/10 p-1 rounded-xl border border-white/20 flex items-center justify-center">
             <img 
               src="/logo.png" 
@@ -398,6 +412,189 @@ export default function App() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 max-w-7xl">
+          {/* CLASS ATTENDANCE TAB */}
+          {activeTab === 'attendance' && (
+            <div className="space-y-6">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Kehadiran Kelas Manual</h2>
+                  <p className="text-sm text-slate-500">Pilih kelas dan tarikh untuk semakan atau kemaskini kehadiran.</p>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* PEMILIH TARIKH (DATE PICKER) */}
+                  <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <input 
+                      type="date" 
+                      value={selectedDate}
+                      onChange={e => setSelectedDate(e.target.value)}
+                      className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                    />
+                  </div>
+
+                  {/* PEMILIH KELAS */}
+                  <select 
+                    value={selectedClass} 
+                    onChange={e => setSelectedClass(e.target.value)}
+                    className="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-lg px-3 py-2 outline-none shadow-sm"
+                  >
+                    {availableClasses.map(c => (
+                      <option key={c} value={c}>Kelas {c}</option>
+                    ))}
+                  </select>
+
+                  <button 
+                    onClick={markAllPresent}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition border border-slate-300"
+                  >
+                    Tanda Semua Hadir
+                  </button>
+
+                  <button 
+                    onClick={handleSaveAttendance}
+                    className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition shadow-sm"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Simpan Rekod</span>
+                  </button>
+                </div>
+              </div>
+
+              {saveMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-sm">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{saveMessage}</span>
+                </div>
+              )}
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Murid</th>
+                      <th className="px-4 py-3">Kelas</th>
+                      <th className="px-4 py-3 text-center">Status Kehadiran ({selectedDate})</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {students.filter(s => s.class === selectedClass).map(s => {
+                      const att = attendance.find(a => a.student_id === s.id && a.date === selectedDate);
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/80">
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-slate-900">{s.name}</p>
+                            <p className="text-xs text-slate-400">{s.id}</p>
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-600">{s.class}</td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center justify-center space-x-2">
+                              <button 
+                                onClick={() => toggleAttendance(s.id, 'Hadir')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Hadir' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50'}`}
+                              >
+                                Hadir
+                              </button>
+                              <button 
+                                onClick={() => toggleAttendance(s.id, 'Tidak Hadir')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Tidak Hadir' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50'}`}
+                              >
+                                Tidak Hadir
+                              </button>
+                              <button 
+                                onClick={() => toggleAttendance(s.id, 'Bersebab')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Bersebab' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-purple-50'}`}
+                              >
+                                Bersebab
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* DASHBOARD TAB */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran</h2>
+                
+                {/* PEMILIH TARIKH DASHBOARD */}
+                <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span className="text-xs font-bold text-slate-500">Tarikh:</span>
+                  <input 
+                    type="date" 
+                    value={selectedDate}
+                    onChange={e => setSelectedDate(e.target.value)}
+                    className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hadir</p>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">
+                    {filteredAttendanceByDate.filter(a => a.status === 'Hadir').length}
+                  </p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">
+                    {filteredAttendanceByDate.filter(a => a.status === 'Tidak Hadir').length}
+                  </p>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bersebab</p>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">
+                    {filteredAttendanceByDate.filter(a => a.status === 'Bersebab').length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Student Quick List */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-800">Senarai Ringkas Kehadiran ({selectedDate})</h3>
+                  <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
+                </div>
+                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                  {students.map(s => {
+                    const att = attendance.find(a => a.student_id === s.id && a.date === selectedDate);
+                    return (
+                      <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
+                        <div>
+                          <p className="font-medium text-slate-900">{s.name}</p>
+                          <p className="text-xs text-slate-500">{s.id} • Kelas: {s.class}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            att?.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
+                            att?.status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
+                            att?.status === 'Bersebab' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {att ? att.status : 'Belum Rekod'}
+                          </span>
+                          {att?.method && <p className="text-[10px] text-slate-400 mt-0.5">{att.method}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* TAB CETAK KAD ID / QR MURID */}
           {activeTab === 'print' && (
             <div className="space-y-6">
@@ -440,7 +637,6 @@ export default function App() {
                       className="id-card bg-white rounded-2xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
                       style={{ minHeight: '230px' }}
                     >
-                      {/* Card Header Design dengan Logo Sekolah */}
                       <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-4 py-3 flex items-center justify-between border-b-2 border-amber-400">
                         <div className="flex items-center space-x-2">
                           <img 
@@ -461,7 +657,6 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* Card Body */}
                       <div className="p-4 flex items-center justify-between gap-3 bg-slate-50/50 flex-1">
                         <div className="space-y-1.5 flex-1">
                           <div>
@@ -486,7 +681,6 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* QR Code Container */}
                         <div className="bg-white p-2 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
                           <img 
                             src={qrUrl} 
@@ -497,7 +691,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Card Footer Stripe */}
                       <div className="bg-slate-900 px-4 py-1 flex items-center justify-between text-[8px] text-slate-400">
                         <span>Kad ID Rasmi Sekolah SK Sungai Bayan</span>
                         <span className="font-mono text-amber-400">E-HADIR DIGITAL</span>
@@ -517,7 +710,7 @@ export default function App() {
                   <Camera className="w-6 h-6 text-emerald-300" />
                 </div>
                 <h2 className="text-2xl font-bold">Pengimbas Kehadiran Pintu Pagar</h2>
-                <p className="text-emerald-200 text-xs mt-1">Halakan Kod QR Murid ke arah kamera untuk mencatat kehadiran hari ini secara automatik.</p>
+                <p className="text-emerald-200 text-xs mt-1">Tarikh Imbasan: <strong>{selectedDate}</strong></p>
               </div>
 
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -561,148 +754,6 @@ export default function App() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* DASHBOARD TAB */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran Hari Ini</h2>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{students.length}</p>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Hadir</p>
-                  <p className="text-2xl font-bold text-emerald-600 mt-1">
-                    {attendance.filter(a => a.status === 'Hadir').length}
-                  </p>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
-                  <p className="text-2xl font-bold text-red-600 mt-1">
-                    {attendance.filter(a => a.status === 'Tidak Hadir').length}
-                  </p>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bersebab</p>
-                  <p className="text-2xl font-bold text-purple-600 mt-1">
-                    {attendance.filter(a => a.status === 'Bersebab').length}
-                  </p>
-                </div>
-              </div>
-
-              {/* Student Quick List */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-800">Senarai Ringkas Murid</h3>
-                  <button onClick={() => setActiveTab('students')} className="text-xs text-blue-600 font-medium hover:underline">Lihat Semua</button>
-                </div>
-                <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                  {students.map(s => {
-                    const att = attendance.find(a => a.student_id === s.id);
-                    return (
-                      <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                        <div>
-                          <p className="font-medium text-slate-900">{s.name}</p>
-                          <p className="text-xs text-slate-500">{s.id} • Kelas: {s.class}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                            att?.status === 'Hadir' ? 'bg-emerald-100 text-emerald-800' :
-                            att?.status === 'Tidak Hadir' ? 'bg-red-100 text-red-800' :
-                            att?.status === 'Bersebab' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {att ? att.status : 'Belum Rekod'}
-                          </span>
-                          {att?.method && <p className="text-[10px] text-slate-400 mt-0.5">{att.method}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CLASS ATTENDANCE TAB */}
-          {activeTab === 'attendance' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-800">Kehadiran Kelas Manual</h2>
-                  <p className="text-sm text-slate-500">Pilih kelas untuk kemaskini status kehadiran murid hari ini.</p>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <select 
-                    value={selectedClass} 
-                    onChange={e => setSelectedClass(e.target.value)}
-                    className="bg-white border border-slate-300 text-slate-800 text-sm rounded-lg px-3 py-2 font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    {availableClasses.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-
-                  <button 
-                    onClick={markAllPresent}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm"
-                  >
-                    Tanda Semua Hadir
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
-                    <tr>
-                      <th className="px-4 py-3">Murid</th>
-                      <th className="px-4 py-3">Kelas</th>
-                      <th className="px-4 py-3 text-center">Status Kehadiran Hari Ini</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {students.filter(s => s.class === selectedClass).map(s => {
-                      const att = attendance.find(a => a.student_id === s.id);
-                      return (
-                        <tr key={s.id} className="hover:bg-slate-50/80">
-                          <td className="px-4 py-3.5">
-                            <p className="font-medium text-slate-900">{s.name}</p>
-                            <p className="text-xs text-slate-400">{s.id}</p>
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-600">{s.class}</td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center justify-center space-x-2">
-                              <button 
-                                onClick={() => toggleAttendance(s.id, 'Hadir')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Hadir' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50'}`}
-                              >
-                                Hadir
-                              </button>
-                              <button 
-                                onClick={() => toggleAttendance(s.id, 'Tidak Hadir')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Tidak Hadir' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50'}`}
-                              >
-                                Tidak Hadir
-                              </button>
-                              <button 
-                                onClick={() => toggleAttendance(s.id, 'Bersebab')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${att?.status === 'Bersebab' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-purple-50'}`}
-                              >
-                                Bersebab
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
 
