@@ -5,6 +5,11 @@ import {
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
+// =========================================================================
+// 1. MASUKKAN PAUTAN GOOGLE SHEETS (CSV) ANDA DI SINI UNTUK SELARAS SEMUA PERANTI AUTOMATIK
+// =========================================================================
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; // <--- Tampal pautan Google Sheets CSV anda di sini
+
 // --- INITIAL DUMMY DATA ---
 const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', phone: '012-3456789', qr_token: 'SB20260001' },
@@ -67,6 +72,10 @@ export default function App() {
     return today.toISOString().split('T')[0];
   });
 
+  const [sheetUrl, setSheetUrl] = useState(() => {
+    return localStorage.getItem('sksb_sheet_url') || DEFAULT_SHEET_URL;
+  });
+
   const [students, setStudents] = useState(() => {
     try {
       const saved = localStorage.getItem('sksb_students');
@@ -74,10 +83,6 @@ export default function App() {
     } catch (e) {
       return INITIAL_STUDENTS;
     }
-  });
-
-  const [sheetUrl, setSheetUrl] = useState(() => {
-    return localStorage.getItem('sksb_sheet_url') || '';
   });
 
   const [attendance, setAttendance] = useState(() => {
@@ -104,11 +109,13 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // Auto Sync
+  const availableClasses = Array.from(new Set(students.map(s => s.class)));
+
+  // AUTOMATIC SYNC DARI GOOGLE SHEETS SETIAP KALI SEBARANG PERANTI (LAPTOP/PHONE) MEMBUKA LAMAN WEB
   useEffect(() => {
-    const savedUrl = localStorage.getItem('sksb_sheet_url');
-    if (savedUrl) {
-      fetch(savedUrl)
+    const activeUrl = sheetUrl.includes('output=csv') ? sheetUrl : DEFAULT_SHEET_URL;
+    if (activeUrl && activeUrl.includes('output=csv')) {
+      fetch(activeUrl)
         .then(res => res.text())
         .then(csvData => {
           const imported = parseCSV(csvData);
@@ -119,13 +126,13 @@ export default function App() {
         })
         .catch(err => console.error("Auto sync error:", err));
     }
-  }, []);
+  }, [sheetUrl]);
 
+  // Kekalkan rekod kehadiran dalam localStorage
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
   }, [attendance]);
 
-  // Tetapkan kelas terperinci lalai jika belum dipilih
   useEffect(() => {
     if (!dashboardDetailClass && availableClasses.length > 0) {
       setDashboardDetailClass(availableClasses[0]);
@@ -161,13 +168,24 @@ export default function App() {
     };
   }, [activeTab, students, selectedDate]);
 
+  // Handle QR Code Scan
   const handleQrScanned = (scannedCode) => {
-    const cleanCode = scannedCode.trim();
+    const rawCode = scannedCode.trim();
+    const cleanCode = rawCode.toLowerCase();
 
-    const foundStudent = students.find(s => 
-      s.id.toLowerCase() === cleanCode.toLowerCase() || 
-      s.qr_token.toLowerCase() === cleanCode.toLowerCase()
-    );
+    const foundStudent = students.find(s => {
+      const studentId = (s.id || '').trim().toLowerCase();
+      const qrToken = (s.qr_token || '').trim().toLowerCase();
+      
+      const studentNum = studentId.replace(/\D/g, '');
+      const scannedNum = cleanCode.replace(/\D/g, '');
+
+      return (
+        studentId === cleanCode || 
+        qrToken === cleanCode ||
+        (studentNum !== '' && studentNum === scannedNum)
+      );
+    });
 
     if (foundStudent) {
       setAttendance(prev => {
@@ -184,7 +202,7 @@ export default function App() {
       setScanResult({
         success: false,
         student: null,
-        message: `KOD QR TIDAK DITEMUI: "${cleanCode}" tiada dalam senarai murid.`
+        message: `KOD QR TIDAK DITEMUI: "${rawCode}" tiada dalam senarai murid. Sila pastikan Google Sheets mengandungi No ID ini.`
       });
     }
   };
@@ -290,15 +308,12 @@ export default function App() {
     }, 4000);
   };
 
-  const availableClasses = Array.from(new Set(students.map(s => s.class)));
-
   const printFilteredStudents = printClassFilter === 'Semua' 
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
   const filteredAttendanceByDate = attendance.filter(a => a.date === selectedDate);
 
-  // Kiraan Statistik Perincian Kelas Dashboard
   const getDetailedClassStats = (className) => {
     const classStudents = students.filter(s => s.class === className);
     const totalStudents = classStudents.length;
@@ -464,7 +479,7 @@ export default function App() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 max-w-7xl">
-          {/* DASHBOARD TAB WITH CHARTS AND DETAILED CLASS BREAKDOWN */}
+          {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -511,10 +526,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* OVERALL CHART & DETAILED BREAKDOWN SECTION */}
+              {/* OVERALL CHART & DETAILED BREAKDOWN */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS (OVERALL CHART) */}
+                {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS */}
                 <div className="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b pb-3 border-slate-100">
                     <div className="flex items-center space-x-2">
@@ -551,7 +566,6 @@ export default function App() {
                             </span>
                           </div>
 
-                          {/* Visual Bar Chart */}
                           <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden flex">
                             <div 
                               className="bg-emerald-500 h-full transition-all duration-500" 
@@ -568,7 +582,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* MAKLUMAT TERPERINCI KELAS YANG DIPILIH (LELAKI & PEREMPUAN) */}
+                {/* MAKLUMAT TERPERINCI KELAS */}
                 <div className="lg:col-span-5 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                   <div>
                     <div className="border-b pb-3 border-slate-100 flex items-center justify-between">
@@ -593,7 +607,7 @@ export default function App() {
                       return (
                         <div className="mt-4 space-y-4">
                           
-                          {/* JANTINA: LELAKI */}
+                          {/* LELAKI */}
                           <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black text-blue-900 uppercase tracking-wide">Lelaki (L)</span>
@@ -613,7 +627,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* JANTINA: PEREMPUAN */}
+                          {/* PEREMPUAN */}
                           <div className="bg-pink-50/60 p-4 rounded-xl border border-pink-200 space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-black text-pink-900 uppercase tracking-wide">Perempuan (P)</span>
@@ -633,7 +647,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* KESELURAHAN KELAS */}
+                          {/* KESELURAHAN */}
                           <div className="bg-slate-900 text-white p-4 rounded-xl space-y-1">
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-slate-300">Peratusan Kehadiran Kelas</span>
