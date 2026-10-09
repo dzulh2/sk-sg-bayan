@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
-  CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle, Award 
+  CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle, Award,
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -68,7 +69,7 @@ const parseCSV = (csvText) => {
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-
+const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -532,7 +533,7 @@ export default function App() {
       {/* Main Container */}
       <div className="flex-1 flex flex-col md:flex-row">
         {/* Sidebar Navigation */}
-        <nav className="w-full md:w-64 bg-white border-r border-slate-200 p-4 space-y-1 no-print">
+        <nav className={`w-full md:w-64 bg-white border-r border-slate-200 p-4 space-y-1 no-print ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
           <button 
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
@@ -588,22 +589,42 @@ export default function App() {
         <main className="flex-1 p-6 max-w-7xl">
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran Keseluruhan</h2>
                   <p className="text-xs text-slate-500 mt-0.5">Pantau statistik kehadiran harian dan senarai nama murid tidak hadir.</p>
                 </div>
                 
-                <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  <span className="text-xs font-bold text-slate-500">Tarikh:</span>
-                  <input 
-                    type="date" 
-                    value={selectedDate}
-                    onChange={e => setSelectedDate(e.target.value)}
-                    className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
-                  />
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-sm">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span className="text-xs font-bold text-slate-500">Tarikh:</span>
+                    <input 
+                      type="date" 
+                      value={selectedDate}
+                      onChange={e => setSelectedDate(e.target.value)}
+                      className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                    />
+                  </div>
+
+                  {/* FULL-FRAME TOGGLE BUTTON */}
+                  <button 
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm"
+                    title={isSidebarCollapsed ? "Tunjuk Panel Sisi" : "Skrin Penuh (Sembunyi Panel Sisi)"}
+                  >
+                    {isSidebarCollapsed ? (
+                      <>
+                        <Minimize2 className="w-4 h-4 text-amber-400" />
+                        <span className="hidden md:inline">Standard</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-4 h-4 text-blue-400" />
+                        <span className="hidden md:inline">Skrin Penuh</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
               
