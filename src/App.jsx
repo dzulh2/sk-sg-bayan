@@ -69,7 +69,8 @@ const parseCSV = (csvText) => {
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -484,7 +485,8 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
       `}</style>
 
       {/* Top Navbar */}
-      <header className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print">
+      {/* Top Navbar */}
+      <header className={`bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
         <div className="flex items-center space-x-3">
           <div className="bg-white/10 p-1 rounded-xl border border-white/20 flex items-center justify-center">
             <img 
@@ -586,7 +588,7 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
         </nav>
 
         {/* Content Area */}
-        <main className="flex-1 p-6 max-w-7xl">
+        <main className={`flex-1 p-6 ${isSidebarCollapsed ? 'w-full max-w-none' : 'max-w-7xl'}`}>
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -611,17 +613,16 @@ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
                   <button 
                     onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                     className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm"
-                    title={isSidebarCollapsed ? "Tunjuk Panel Sisi" : "Skrin Penuh (Sembunyi Panel Sisi)"}
                   >
                     {isSidebarCollapsed ? (
                       <>
                         <Minimize2 className="w-4 h-4 text-amber-400" />
-                        <span className="hidden md:inline">Standard</span>
+                        <span>Standard</span>
                       </>
                     ) : (
                       <>
                         <Maximize2 className="w-4 h-4 text-blue-400" />
-                        <span className="hidden md:inline">Skrin Penuh</span>
+                        <span>Skrin Penuh</span>
                       </>
                     )}
                   </button>
