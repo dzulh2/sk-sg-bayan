@@ -69,7 +69,6 @@ const parseCSV = (csvText) => {
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -108,7 +107,9 @@ export default function App() {
   const [dashboardDetailClass, setDashboardDetailClass] = useState('Semua Kelas');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
   const [certFilterClass, setCertFilterClass] = useState('Semua');
-  const [printSubTab, setPrintSubTab] = useState('cards'); // 'cards' atau 'certs'
+  const [printSubTab, setPrintSubTab] = useState('cards');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
   const [saveMessage, setSaveMessage] = useState('');
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
@@ -479,13 +480,11 @@ export default function App() {
           header, nav, .no-print { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
           .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 10px !important; }
-          .cert-print-area { display: block !important; }
           .id-card { page-break-inside: avoid; break-inside: avoid; border: 2px solid #1e293b !important; box-shadow: none !important; }
         }
       `}</style>
 
-      {/* Top Navbar */}
-      {/* Top Navbar */}
+      {/* Top Navbar Header */}
       <header className={`bg-slate-900 text-white px-6 py-4 flex items-center justify-between shadow-md no-print ${isSidebarCollapsed ? 'hidden' : 'flex'}`}>
         <div className="flex items-center space-x-3">
           <div className="bg-white/10 p-1 rounded-xl border border-white/20 flex items-center justify-center">
@@ -591,7 +590,8 @@ export default function App() {
         <main className={`flex-1 p-6 ${isSidebarCollapsed ? 'w-full max-w-none' : 'max-w-7xl'}`}>
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
-           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Ringkasan Kehadiran Keseluruhan</h2>
                   <p className="text-xs text-slate-500 mt-0.5">Pantau statistik kehadiran harian dan senarai nama murid tidak hadir.</p>
@@ -609,7 +609,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* FULL-FRAME TOGGLE BUTTON */}
                   <button 
                     onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                     className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm"
@@ -660,7 +659,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TOP 3 CLASS LEADERBOARD WIDGET */}
+              {/* LEADERBOARD WIDGET */}
               <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 rounded-2xl p-5 text-white shadow-md">
                 <div className="flex items-center space-x-2 mb-4">
                   <Trophy className="w-6 h-6 text-yellow-200" />
@@ -695,10 +694,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* CARTA & MAKLUMAT TERPERINCI */}
+              {/* DETAILS SECTION */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* CARTA PERATUSAN KEHADIRAN MENGIKUT KELAS */}
                 <div className="lg:col-span-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b pb-3 border-slate-100">
                     <div className="flex items-center space-x-2">
@@ -748,7 +745,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* MAKLUMAT TERPERINCI & SENARAI NAMA MURID TIDAK HADIR */}
                 <div className="lg:col-span-6 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                   <div className="border-b pb-3 border-slate-100 flex items-center justify-between">
                     <div>
@@ -772,8 +768,6 @@ export default function App() {
                     const detail = getDetailedClassStats(dashboardDetailClass);
                     return (
                       <div className="space-y-4">
-                        
-                        {/* LELAKI */}
                         <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-black text-blue-900 uppercase tracking-wide">Lelaki (L)</span>
@@ -804,7 +798,6 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* PEREMPUAN */}
                         <div className="bg-pink-50/60 p-4 rounded-xl border border-pink-200 space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-black text-pink-900 uppercase tracking-wide">Perempuan (P)</span>
@@ -834,12 +827,10 @@ export default function App() {
                             )}
                           </div>
                         </div>
-
                       </div>
                     );
                   })()}
                 </div>
-
               </div>
             </div>
           )}
@@ -952,8 +943,6 @@ export default function App() {
           {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
           {activeTab === 'print' && (
             <div className="space-y-6">
-              
-              {/* SUB-NAVIGATION TOGGLE (NO PRINT) */}
               <div className="flex items-center space-x-2 bg-slate-200 p-1.5 rounded-xl no-print max-w-md">
                 <button 
                   onClick={() => setPrintSubTab('cards')}
@@ -977,7 +966,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* VIEW 1: PENJANA KAD MATRIK & QR MURID */}
               {printSubTab === 'cards' && (
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 no-print bg-indigo-900 text-white p-6 rounded-2xl shadow-md">
@@ -1008,7 +996,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* ID CARDS GRID CONTAINER */}
                   <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-6">
                     {printFilteredStudents.map(s => {
                       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
@@ -1038,56 +1025,54 @@ export default function App() {
                           </div>
 
                           <div className="p-3.5 flex items-center justify-between gap-3 bg-slate-50/50 flex-1 overflow-hidden">
-                        {/* LEFT COLUMN: STUDENT INFO WITH AUTO-RESIZING NAME */}
-                        <div className="space-y-1.5 flex-1 min-w-0 pr-1">
-                          <div>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
-                            <h4 
-                              className={`font-black text-slate-900 leading-tight uppercase break-words ${
-                                s.name.length > 30 
-                                  ? 'text-[10px]' 
-                                  : s.name.length > 22 
-                                    ? 'text-[11px]' 
-                                    : 'text-xs'
-                              }`}
-                              style={{
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              {s.name}
-                            </h4>
-                          </div>
+                            <div className="space-y-1.5 flex-1 min-w-0 pr-1">
+                              <div>
+                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                                <h4 
+                                  className={`font-black text-slate-900 leading-tight uppercase break-words ${
+                                    s.name.length > 30 
+                                      ? 'text-[10px]' 
+                                      : s.name.length > 22 
+                                        ? 'text-[11px]' 
+                                        : 'text-xs'
+                                  }`}
+                                  style={{
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  {s.name}
+                                </h4>
+                              </div>
 
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="bg-blue-100 text-blue-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-blue-300">
-                              ID: {s.id}
-                            </span>
-                            <span className="bg-emerald-100 text-emerald-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
-                              KELAS: {s.class}
-                            </span>
-                          </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="bg-blue-100 text-blue-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-blue-300">
+                                  ID: {s.id}
+                                </span>
+                                <span className="bg-emerald-100 text-emerald-900 text-[9px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
+                                  KELAS: {s.class}
+                                </span>
+                              </div>
 
-                          <div className="pt-1 text-[9px] text-slate-600 space-y-0.5 border-t border-slate-200">
-                            <p className="break-all">
-                              <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
-                            </p>
-                            <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
-                          </div>
-                        </div>
+                              <div className="pt-1 text-[9px] text-slate-600 space-y-0.5 border-t border-slate-200">
+                                <p className="break-all">
+                                  <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
+                                </p>
+                                <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
+                              </div>
+                            </div>
 
-                        {/* RIGHT COLUMN: FIXED QR CODE CONTAINER */}
-                        <div className="bg-white p-1.5 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
-                          <img 
-                            src={qrUrl} 
-                            alt={`QR ${s.id}`} 
-                            className="w-20 h-20 object-contain rounded"
-                          />
-                          <p className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
-                        </div>
-                      </div>
+                            <div className="bg-white p-1.5 rounded-xl border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
+                              <img 
+                                src={qrUrl} 
+                                alt={`QR ${s.id}`} 
+                                className="w-20 h-20 object-contain rounded"
+                              />
+                              <p className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
+                            </div>
+                          </div>
 
                           <div className="bg-slate-900 px-4 py-1 flex items-center justify-between text-[8px] text-slate-400">
                             <span>Kad ID Rasmi Sekolah SK Sungai Bayan</span>
@@ -1100,7 +1085,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* VIEW 2: PENJANA SIJIL KEHADIRAN 100% */}
               {printSubTab === 'certs' && (
                 <div className="space-y-6">
                   <div className="bg-amber-700 text-white p-6 rounded-2xl shadow-md no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1136,7 +1120,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* PREVIEW CONTAINER ON SCREEN */}
                   <div className="bg-slate-100 p-6 rounded-2xl border border-slate-300 no-print space-y-4">
                     <p className="text-xs font-bold text-slate-600 uppercase">Pratonton Sijil ({getPerfectAttendanceStudents().length} Murid Ditemui)</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1154,8 +1137,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* TEMPLATE SIJIL KEHADIRAN 100% (PRINT AREA ONLY) */}
-                  <div className="cert-print-area hidden print:block space-y-8">
+                  <div className="hidden print:block space-y-8">
                     {getPerfectAttendanceStudents().map(s => (
                       <div 
                         key={`cert-${s.id}`} 
@@ -1193,7 +1175,6 @@ export default function App() {
                   </div>
                 </div>
               )}
-
             </div>
           )}
 
