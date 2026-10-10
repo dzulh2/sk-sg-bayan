@@ -129,6 +129,7 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
+  // 1. AUTO SYNC STUDENT DIRECTORY FROM GOOGLE SHEETS
   useEffect(() => {
     const activeUrl = sheetUrl.includes('output=csv') ? sheetUrl : DEFAULT_SHEET_URL;
     if (activeUrl && activeUrl.includes('output=csv')) {
@@ -145,26 +146,40 @@ export default function App() {
     }
   }, [sheetUrl]);
 
+  // 2. 5-MINUTE AUTOMATIC POLLING LOOP FOR CLOUD ATTENDANCE DATA REFRESH
   useEffect(() => {
-    if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
-      fetch(ATTENDANCE_API_URL)
-        .then(res => res.json())
-        .then(data => {
+    const fetchLatestAttendance = async () => {
+      if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
+        try {
+          const response = await fetch(ATTENDANCE_API_URL);
+          const data = await response.json();
           if (Array.isArray(data)) {
             setAttendance(data);
             localStorage.setItem('sksb_attendance', JSON.stringify(data));
             setLastUpdatedTime(new Date());
           }
-        })
-        .catch(err => console.error("Error fetching online attendance:", err));
-    }
+        } catch (err) {
+          console.error("Background auto-refresh failed:", err);
+        }
+      }
+    };
+
+    fetchLatestAttendance();
+
+    const intervalId = setInterval(() => {
+      fetchLatestAttendance();
+    }, 5 * 60 * 1000); // 5 minutes interval
+
+    return () => clearInterval(intervalId);
   }, []);
 
+  // 3. PERSIST ATTENDANCE TO LOCALSTORAGE ON CHANGE
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
     setLastUpdatedTime(new Date());
   }, [attendance]);
 
+  // 4. FULLSCREEN SCREEN TOGGLE LOOP (15 SECONDS)
   useEffect(() => {
     let timer = null;
     if (isFullscreenMode) {
@@ -179,6 +194,7 @@ export default function App() {
     };
   }, [isFullscreenMode]);
 
+  // 5. CAMERA QR SCANNER LOGIC
   useEffect(() => {
     let scanner = null;
     let timer = null;
@@ -792,7 +808,7 @@ export default function App() {
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
               <span className="text-emerald-400 uppercase tracking-wider">Sistem Berjalan Aktif</span>
             </div>
-            <span>Pertukaran Skrin Otomatik (15s)</span>
+            <span>Pertukaran Skrin Otomatik (15s) • Auto Refresh (5m)</span>
           </div>
 
         </div>
