@@ -8,7 +8,7 @@ import {
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
-const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbwp21xM60fM1C9a8DCYC2o3ar10-NvYHWTFoWWddOOij4ssLLjbbcSTJHIG-Rj-0Ifq/exec"; 
+const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbyM_nTKRqH36YZCv0qKxRA8EPWB1_rdUk2jn2mEgCoY8p8AJDlQc8L7v8N8XU2CrYXi/exec"; 
 
 const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', phone: '012-3456789', qr_token: 'SB20260001' },
@@ -150,7 +150,7 @@ export default function App() {
       fetch(ATTENDANCE_API_URL)
         .then(res => res.json())
         .then(data => {
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             setAttendance(data);
             localStorage.setItem('sksb_attendance', JSON.stringify(data));
             setLastUpdatedTime(new Date());
@@ -219,7 +219,6 @@ export default function App() {
     };
   }, [activeTab, students, selectedDate]);
 
-  // STRICT DEDUPLICATION UPON SCANNING
   const handleQrScanned = async (scannedCode) => {
     const rawCode = scannedCode.trim();
     const cleanCode = rawCode.toLowerCase();
@@ -242,7 +241,6 @@ export default function App() {
       const newRecord = { student_id: foundStudent.id, date: selectedDate, status: 'Hadir', method: 'QR Kamera' };
 
       setAttendance(prev => {
-        // Remove ANY previous record for this student on the selected date to prevent duplicates
         const filtered = prev.filter(a => !(a.student_id === foundStudent.id && a.date === selectedDate));
         return [...filtered, newRecord];
       });
@@ -368,19 +366,55 @@ export default function App() {
     });
   };
 
-  const handleResetDailyAttendance = () => {
+  const handleResetDailyAttendance = async () => {
     if (window.confirm(`Adakah anda pasti untuk RESET semua rekod kehadiran kelas ${selectedClass} pada tarikh ${formatDateDMY(selectedDate)}?`)) {
       const classStudentIds = students.filter(s => s.class === selectedClass).map(s => s.id);
+      
       setAttendance(prev => prev.filter(a => !(a.date === selectedDate && classStudentIds.includes(a.student_id))));
-      setSaveMessage(`Rekod kehadiran kelas ${selectedClass} bagi ${formatDateDMY(selectedDate)} telah di-reset.`);
+      setSaveMessage(`Mereset rekod kelas ${selectedClass} pada peranti dan awan...`);
+
+      if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
+        try {
+          await fetch(ATTENDANCE_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: "reset",
+              date: selectedDate,
+              student_ids: classStudentIds
+            })
+          });
+          setSaveMessage(`Rekod kehadiran kelas ${selectedClass} bagi ${formatDateDMY(selectedDate)} telah di-reset di semua peranti.`);
+        } catch (e) {
+          console.error("Cloud reset error:", e);
+        }
+      }
       setTimeout(() => setSaveMessage(''), 4000);
     }
   };
 
-  const handleClearAllSelectedDateAttendance = () => {
-    if (window.confirm(`Reset SEMUA rekod sekolah bagi tarikh ${formatDateDMY(selectedDate)}?`)) {
+  const handleClearAllSelectedDateAttendance = async () => {
+    if (window.confirm(`Reset SEMUA rekod sekolah bagi tarikh ${formatDateDMY(selectedDate)} di semua peranti?`)) {
       setAttendance(prev => prev.filter(a => a.date !== selectedDate));
-      setSaveMessage(`Semua rekod tarikh ${formatDateDMY(selectedDate)} telah dibersihkan.`);
+      setSaveMessage(`Mereset semua rekod bagi tarikh ${formatDateDMY(selectedDate)} pada peranti dan awan...`);
+
+      if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
+        try {
+          await fetch(ATTENDANCE_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: "reset",
+              date: selectedDate
+            })
+          });
+          setSaveMessage(`Semua rekod tarikh ${formatDateDMY(selectedDate)} telah dibersihkan di semua peranti.`);
+        } catch (e) {
+          console.error("Cloud clear error:", e);
+        }
+      }
       setTimeout(() => setSaveMessage(''), 4000);
     }
   };
@@ -421,7 +455,6 @@ export default function App() {
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
-  // STRICT UNIQUE ATTENDANCE MAP FOR SELECTED DATE
   const getUniqueAttendanceForDate = (date) => {
     const rawList = attendance.filter(a => a.date === date);
     const map = new Map();
@@ -891,7 +924,7 @@ export default function App() {
                       <button 
                         onClick={handleClearAllSelectedDateAttendance}
                         className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 text-xs font-bold px-2.5 py-1.5 rounded-lg transition"
-                        title="Bersihkan Semua Rekod Tarikh Ini"
+                        title="Bersihkan Semua Rekod Tarikh Ini Di Semua Peranti"
                       >
                         Reset Tarikh
                       </button>
@@ -1228,7 +1261,7 @@ export default function App() {
                       <button 
                         onClick={handleResetDailyAttendance}
                         className="flex items-center space-x-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1.5 rounded-lg transition border border-amber-300"
-                        title="Reset Kehadiran Kelas Hari Ini"
+                        title="Reset Kehadiran Kelas Hari Ini Di Semua Peranti"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
                         <span>Reset Kelas Hari Ini</span>
