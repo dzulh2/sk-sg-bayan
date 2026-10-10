@@ -14,15 +14,10 @@ const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', phone: '012-3456789', qr_token: 'SB20260001' },
   { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', phone: '013-9876543', qr_token: 'SB20260002' },
   { id: 'SB20260003', name: 'ADELLSON GANING ANAK JEMMY', year: '1', class: '1 FAJAR', gender: 'L', status: 'Active', guardian: 'm-11223344@moe-dl.edu.my', phone: '014-1234567', qr_token: 'SB20260003' },
-  { id: 'SB20260004', name: 'AIRENparser ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', phone: '015-9876543', qr_token: 'SB20260004' }
+  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', phone: '015-9876543', qr_token: 'SB20260004' }
 ];
 
-const INITIAL_ATTENDANCE = [
-  { student_id: 'SB20260001', date: '2026-10-10', status: 'Hadir', method: 'QR' },
-  { student_id: 'SB20260002', date: '2026-10-10', status: 'Tidak Hadir', method: 'Manual' },
-  { student_id: 'SB20260003', date: '2026-10-10', status: 'Hadir', method: 'QR' },
-  { student_id: 'SB20260004', date: '2026-10-10', status: 'Bersebab', method: 'Manual' }
-];
+const INITIAL_ATTENDANCE = [];
 
 const formatDateDMY = (dateStr) => {
   if (!dateStr) return '';
@@ -121,9 +116,8 @@ export default function App() {
   const [certFilterClass, setCertFilterClass] = useState('Semua');
   const [printSubTab, setPrintSubTab] = useState('cards');
 
-  // Fullscreen Display & Rotation Controls
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
-  const [fullscreenScreenView, setFullscreenScreenView] = useState(0); // 0 = Summary & Leaderboard, 1 = Class % Breakdown
+  const [fullscreenScreenView, setFullscreenScreenView] = useState(0);
   const [lastUpdatedTime, setLastUpdatedTime] = useState(new Date());
 
   const [syncStatus, setSyncStatus] = useState({ loading: false, success: null, message: '' });
@@ -135,7 +129,6 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
-  // Auto Sync Data Murid
   useEffect(() => {
     const activeUrl = sheetUrl.includes('output=csv') ? sheetUrl : DEFAULT_SHEET_URL;
     if (activeUrl && activeUrl.includes('output=csv')) {
@@ -152,7 +145,6 @@ export default function App() {
     }
   }, [sheetUrl]);
 
-  // Auto Sync Kehadiran Cloud
   useEffect(() => {
     if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
       fetch(ATTENDANCE_API_URL)
@@ -173,7 +165,6 @@ export default function App() {
     setLastUpdatedTime(new Date());
   }, [attendance]);
 
-  // Fullscreen 15-second Carousel Rotation
   useEffect(() => {
     let timer = null;
     if (isFullscreenMode) {
@@ -188,7 +179,6 @@ export default function App() {
     };
   }, [isFullscreenMode]);
 
-  // QR Scanner Logic
   useEffect(() => {
     let scanner = null;
     let timer = null;
@@ -229,6 +219,7 @@ export default function App() {
     };
   }, [activeTab, students, selectedDate]);
 
+  // STRICT DEDUPLICATION UPON SCANNING
   const handleQrScanned = async (scannedCode) => {
     const rawCode = scannedCode.trim();
     const cleanCode = rawCode.toLowerCase();
@@ -251,6 +242,7 @@ export default function App() {
       const newRecord = { student_id: foundStudent.id, date: selectedDate, status: 'Hadir', method: 'QR Kamera' };
 
       setAttendance(prev => {
+        // Remove ANY previous record for this student on the selected date to prevent duplicates
         const filtered = prev.filter(a => !(a.student_id === foundStudent.id && a.date === selectedDate));
         return [...filtered, newRecord];
       });
@@ -385,6 +377,14 @@ export default function App() {
     }
   };
 
+  const handleClearAllSelectedDateAttendance = () => {
+    if (window.confirm(`Reset SEMUA rekod sekolah bagi tarikh ${formatDateDMY(selectedDate)}?`)) {
+      setAttendance(prev => prev.filter(a => a.date !== selectedDate));
+      setSaveMessage(`Semua rekod tarikh ${formatDateDMY(selectedDate)} telah dibersihkan.`);
+      setTimeout(() => setSaveMessage(''), 4000);
+    }
+  };
+
   const handleSaveAttendance = async () => {
     setIsSavingAttendance(true);
     setSaveMessage('Sedang menyimpan rekod kehadiran ke pangkalan data awan...');
@@ -421,7 +421,17 @@ export default function App() {
     ? students 
     : students.filter(s => s.class === printClassFilter);
 
-  const filteredAttendanceByDate = attendance.filter(a => a.date === selectedDate);
+  // STRICT UNIQUE ATTENDANCE MAP FOR SELECTED DATE
+  const getUniqueAttendanceForDate = (date) => {
+    const rawList = attendance.filter(a => a.date === date);
+    const map = new Map();
+    rawList.forEach(item => {
+      map.set(item.student_id, item);
+    });
+    return Array.from(map.values());
+  };
+
+  const filteredAttendanceByDate = getUniqueAttendanceForDate(selectedDate);
 
   const totalSchoolStudents = students.length;
   const totalSchoolHadir = filteredAttendanceByDate.filter(a => a.status === 'Hadir').length;
@@ -525,7 +535,7 @@ export default function App() {
       });
     });
 
-    const percent = totalRecords > 0 ? Math.round((totalHadir / totalRecords) * 100) : 95;
+    const percent = totalRecords > 0 ? Math.round((totalHadir / totalRecords) * 100) : 0;
     return { percent, totalHadir, totalRecords };
   };
 
@@ -612,11 +622,8 @@ export default function App() {
         }
       `}</style>
 
-      {/* FULLSCREEN DEDICATED DISPLAY MODE */}
       {isFullscreenMode ? (
         <div className="fixed inset-0 bg-slate-950 text-white z-50 p-6 flex flex-col justify-between overflow-hidden select-none">
-          
-          {/* DISPLAY HEADER */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-4">
             <div className="flex items-center space-x-4">
               <img src="/logo.png" alt="Logo Sekolah" className="w-12 h-12 object-contain" onError={e => e.target.style.display = 'none'} />
@@ -650,11 +657,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* SCREEN A: OVERALL KPIS + TOP DAILY CLASS LEADERBOARD */}
           {fullscreenScreenView === 0 && (
             <div className="flex-1 my-6 flex flex-col justify-around gap-6">
-              
-              {/* BIG KPI CARDS */}
               <div className="grid grid-cols-5 gap-6">
                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center shadow-lg">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Jumlah Murid</p>
@@ -669,7 +673,7 @@ export default function App() {
                 <div className="bg-slate-900 border-l-8 border-l-red-500 border border-slate-800 p-6 rounded-2xl text-center shadow-lg">
                   <p className="text-xs font-bold text-red-400 uppercase tracking-widest">Tidak Hadir</p>
                   <p className="text-5xl font-black text-red-400 mt-2">
-                    {filteredAttendanceByDate.filter(a => a.status === 'Tidak Hadir').length}
+                    {totalSchoolStudents - totalSchoolHadir - filteredAttendanceByDate.filter(a => a.status === 'Bersebab').length}
                   </p>
                 </div>
 
@@ -686,7 +690,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* DAILY LEADERBOARD */}
               <div className="bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 p-6 rounded-2xl text-white shadow-xl">
                 <div className="flex items-center space-x-3 mb-4">
                   <Trophy className="w-8 h-8 text-yellow-200 animate-bounce" />
@@ -711,11 +714,9 @@ export default function App() {
                   ))}
                 </div>
               </div>
-
             </div>
           )}
 
-          {/* SCREEN B: CLASS-BY-CLASS PERCENTAGE BREAKDOWN */}
           {fullscreenScreenView === 1 && (
             <div className="flex-1 my-6 flex flex-col justify-between">
               <div className="flex items-center justify-between mb-4">
@@ -752,7 +753,6 @@ export default function App() {
             </div>
           )}
 
-          {/* DISPLAY FOOTER */}
           <div className="flex items-center justify-between border-t border-slate-800 pt-4 text-xs font-bold text-slate-400">
             <span>SK SUNGAI BAYAN — Sistem e-Hadir Digital</span>
             <div className="flex items-center space-x-2">
@@ -764,9 +764,7 @@ export default function App() {
 
         </div>
       ) : (
-        /* STANDARD WORKFLOW INTERFACE */
         <>
-          {/* Top Navbar Header */}
           <header className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between shadow-md no-print">
             <div className="flex items-center space-x-3">
               <div className="bg-white/10 p-1 rounded-xl border border-white/20 flex items-center justify-center">
@@ -813,9 +811,7 @@ export default function App() {
             </div>
           </header>
 
-          {/* Main Container */}
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Sidebar Navigation */}
             <nav className="w-full md:w-60 bg-white border-r border-slate-200 p-3 space-y-1 no-print">
               <button 
                 onClick={() => setActiveTab('dashboard')}
@@ -868,13 +864,9 @@ export default function App() {
               )}
             </nav>
 
-            {/* Content Area */}
             <main className="flex-1 p-4 md:p-5 overflow-y-auto max-w-7xl">
-              {/* DASHBOARD TAB */}
               {activeTab === 'dashboard' && (
                 <div className="space-y-4 h-full flex flex-col justify-between">
-                  
-                  {/* HEADER & DATE SELECTOR */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
                       <h2 className="text-lg font-bold text-slate-800">Ringkasan Kehadiran Keseluruhan</h2>
@@ -896,7 +888,14 @@ export default function App() {
                         </span>
                       </div>
 
-                      {/* FULL-FRAME TOGGLE BUTTON */}
+                      <button 
+                        onClick={handleClearAllSelectedDateAttendance}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 text-xs font-bold px-2.5 py-1.5 rounded-lg transition"
+                        title="Bersihkan Semua Rekod Tarikh Ini"
+                      >
+                        Reset Tarikh
+                      </button>
+
                       <button 
                         onClick={() => setIsFullscreenMode(true)}
                         className="flex items-center space-x-1 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm"
@@ -908,7 +907,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* STAT CARDS */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
@@ -921,7 +919,7 @@ export default function App() {
                     <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Tidak Hadir</p>
                       <p className="text-xl font-bold text-red-600 mt-0.5">
-                        {filteredAttendanceByDate.filter(a => a.status === 'Tidak Hadir').length}
+                        {totalSchoolStudents - totalSchoolHadir - filteredAttendanceByDate.filter(a => a.status === 'Bersebab').length}
                       </p>
                     </div>
                     <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-purple-500">
@@ -939,10 +937,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* DUAL SCOREBOARDS */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    
-                    {/* 1. DAILY SCOREBOARD */}
                     <div className="bg-gradient-to-r from-amber-500 to-yellow-600 rounded-xl p-3 text-white shadow-sm">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-1.5">
@@ -976,7 +971,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* 2. MONTHLY SCOREBOARD */}
                     <div className="bg-gradient-to-r from-indigo-700 to-blue-800 rounded-xl p-3 text-white shadow-sm">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-1.5">
@@ -1009,16 +1003,10 @@ export default function App() {
                         })}
                       </div>
                     </div>
-
                   </div>
 
-                  {/* MAIN CONTENT GRID */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 min-h-0">
-                    
-                    {/* LEFT SIDE: DONUT/PIE CHART & MONTHLY VERTICAL BARS */}
                     <div className="lg:col-span-7 space-y-3 flex flex-col justify-between">
-                      
-                      {/* CLICKABLE PIE/DONUT CHART */}
                       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
                         <div className="flex-1">
                           <div className="flex items-center justify-between border-b pb-1.5 border-slate-100">
@@ -1066,7 +1054,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* VERTICAL BAR CHART */}
                       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col justify-between">
                         <div className="flex items-center justify-between border-b pb-1.5 border-slate-100">
                           <h3 className="font-bold text-slate-800 text-xs">Peratus Kehadiran Tahunan Mengikut Bulan (%)</h3>
@@ -1103,10 +1090,8 @@ export default function App() {
                           })}
                         </div>
                       </div>
-
                     </div>
 
-                    {/* RIGHT SIDE: MAKLUMAT TERPERINCI */}
                     <div className="lg:col-span-5 bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-full">
                       <div>
                         <div className="border-b pb-2 border-slate-100 flex items-center justify-between">
@@ -1131,8 +1116,6 @@ export default function App() {
                           const detail = getDetailedClassStats(dashboardDetailClass);
                           return (
                             <div className="mt-2 space-y-2">
-                              
-                              {/* LELAKI ABSENT LIST */}
                               <div className="bg-blue-50/60 p-2.5 rounded-lg border border-blue-200 space-y-1.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-black text-blue-900 uppercase">Lelaki (L)</span>
@@ -1163,7 +1146,6 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {/* PEREMPUAN ABSENT LIST */}
                               <div className="bg-pink-50/60 p-2.5 rounded-lg border border-pink-200 space-y-1.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-black text-pink-900 uppercase">Perempuan (P)</span>
@@ -1193,7 +1175,6 @@ export default function App() {
                                   )}
                                 </div>
                               </div>
-
                             </div>
                           );
                         })()}
@@ -1204,13 +1185,10 @@ export default function App() {
                         <span className="text-amber-400 font-bold">Tarikh: {formatDateDMY(selectedDate)}</span>
                       </div>
                     </div>
-
                   </div>
-
                 </div>
               )}
 
-              {/* CLASS ATTENDANCE TAB */}
               {activeTab === 'attendance' && (
                 <div className="space-y-4">
                   <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
@@ -1247,14 +1225,13 @@ export default function App() {
                         Tanda Semua Hadir
                       </button>
 
-                      {/* RESET ATTENDANCE BUTTON */}
                       <button 
                         onClick={handleResetDailyAttendance}
                         className="flex items-center space-x-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1.5 rounded-lg transition border border-amber-300"
-                        title="Reset Kehadiran Hari Ini"
+                        title="Reset Kehadiran Kelas Hari Ini"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Reset Hari Ini</span>
+                        <span>Reset Kelas Hari Ini</span>
                       </button>
 
                       <button 
@@ -1286,7 +1263,7 @@ export default function App() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {students.filter(s => s.class === selectedClass).map(s => {
-                          const att = attendance.find(a => a.student_id === s.id && a.date === selectedDate);
+                          const att = filteredAttendanceByDate.find(a => a.student_id === s.id);
                           return (
                             <tr key={s.id} className="hover:bg-slate-50/80">
                               <td className="px-4 py-2.5">
@@ -1325,7 +1302,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* TAB CETAK KAD ID / QR MURID & SIJIL 100% */}
               {activeTab === 'print' && (
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 bg-slate-200 p-1 rounded-xl no-print max-w-md">
@@ -1561,7 +1537,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* SCAN QR TAB */}
               {activeTab === 'scan' && (
                 <div className="space-y-4 max-w-xl mx-auto">
                   <div className="bg-emerald-900 text-white p-4 rounded-xl shadow-md text-center">
@@ -1616,7 +1591,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* STUDENTS DIRECTORY TAB */}
               {activeTab === 'students' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1656,7 +1630,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* ADMIN HUB TAB */}
               {activeTab === 'admin' && isAdmin && (
                 <div className="space-y-4">
                   <div className="bg-purple-900 text-white p-4 rounded-xl shadow-md">
@@ -1702,7 +1675,6 @@ export default function App() {
             </main>
           </div>
 
-          {/* ADMIN LOGIN MODAL */}
           {showLoginModal && (
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
               <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
