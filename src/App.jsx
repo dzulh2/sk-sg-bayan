@@ -129,7 +129,12 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
-  // 1. AUTO SYNC STUDENT DIRECTORY FROM GOOGLE SHEETS
+  // Helper to set date to today
+  const setToToday = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setSelectedDate(today);
+  };
+
   useEffect(() => {
     const activeUrl = sheetUrl.includes('output=csv') ? sheetUrl : DEFAULT_SHEET_URL;
     if (activeUrl && activeUrl.includes('output=csv')) {
@@ -146,7 +151,6 @@ export default function App() {
     }
   }, [sheetUrl]);
 
-  // 2. 5-MINUTE AUTOMATIC POLLING LOOP FOR CLOUD ATTENDANCE DATA REFRESH
   useEffect(() => {
     const fetchLatestAttendance = async () => {
       if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
@@ -168,18 +172,16 @@ export default function App() {
 
     const intervalId = setInterval(() => {
       fetchLatestAttendance();
-    }, 5 * 60 * 1000); // 5 minutes interval
+    }, 5 * 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  // 3. PERSIST ATTENDANCE TO LOCALSTORAGE ON CHANGE
   useEffect(() => {
     localStorage.setItem('sksb_attendance', JSON.stringify(attendance));
     setLastUpdatedTime(new Date());
   }, [attendance]);
 
-  // 4. FULLSCREEN SCREEN TOGGLE LOOP (15 SECONDS)
   useEffect(() => {
     let timer = null;
     if (isFullscreenMode) {
@@ -194,7 +196,6 @@ export default function App() {
     };
   }, [isFullscreenMode]);
 
-  // 5. CAMERA QR SCANNER LOGIC
   useEffect(() => {
     let scanner = null;
     let timer = null;
@@ -667,7 +668,7 @@ export default function App() {
           header, nav, .no-print { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
           .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 10px !important; }
-          .id-card { page-break-inside: avoid; break-inside: avoid; border: 2px solid #1e293b !important; box-shadow: none !important; }
+          .id-card, .id-card-back { page-break-inside: avoid; break-inside: avoid; border: 2px solid #1e293b !important; box-shadow: none !important; }
         }
       `}</style>
 
@@ -1247,7 +1248,7 @@ export default function App() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center space-x-2 bg-white border border-slate-300 px-2.5 py-1 rounded-lg shadow-sm">
+                      <div className="flex items-center space-x-1 bg-white border border-slate-300 px-2.5 py-1 rounded-lg shadow-sm">
                         <Calendar className="w-3.5 h-3.5 text-blue-600" />
                         <input 
                           type="date" 
@@ -1255,6 +1256,13 @@ export default function App() {
                           onChange={e => setSelectedDate(e.target.value)}
                           className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
                         />
+                        <button 
+                          onClick={setToToday}
+                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded border border-blue-200 transition ml-1"
+                          title="Pilih Tarikh Hari Ini"
+                        >
+                          Hari Ini
+                        </button>
                       </div>
 
                       <select 
@@ -1381,7 +1389,7 @@ export default function App() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print bg-indigo-900 text-white p-4 rounded-xl shadow-md">
                         <div>
                           <h2 className="text-lg font-bold">Penjana Kad Matrik & QR Murid</h2>
-                          <p className="text-indigo-200 text-xs">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Kod QR yang sedia diimbas.</p>
+                          <p className="text-indigo-200 text-xs">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Muka Depan & Muka Belakang untuk kad keras.</p>
                         </div>
 
                         <div className="flex items-center space-x-2">
@@ -1411,84 +1419,123 @@ export default function App() {
                           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
                           
                           return (
-                            <div 
-                              key={s.id} 
-                              className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
-                              style={{ minHeight: '220px' }}
-                            >
-                              <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-2 flex items-center justify-between border-b-2 border-amber-400">
-                                <div className="flex items-center space-x-2">
+                            <React.Fragment key={s.id}>
+                              {/* FRONT OF THE ID CARD */}
+                              <div 
+                                className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
+                                style={{ minHeight: '220px' }}
+                              >
+                                <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-2 flex items-center justify-between border-b-2 border-amber-400">
+                                  <div className="flex items-center space-x-2">
+                                    <img 
+                                      src="/logo.png" 
+                                      alt="SK Sungai Bayan" 
+                                      className="w-6 h-6 object-contain bg-white/10 rounded p-0.5"
+                                      onError={(e) => { e.target.style.display = 'none'; }}
+                                    />
+                                    <div>
+                                      <h3 className="font-extrabold text-[11px] tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
+                                      <p className="text-[8px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-widest">
+                                    2026
+                                  </span>
+                                </div>
+
+                                <div className="p-3 flex items-center justify-between gap-2.5 bg-slate-50/50 flex-1 overflow-hidden">
+                                  <div className="space-y-1 flex-1 min-w-0 pr-1">
+                                    <div>
+                                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                                      <h4 
+                                        className={`font-black text-slate-900 leading-tight uppercase break-words ${
+                                          s.name.length > 30 
+                                            ? 'text-[10px]' 
+                                            : s.name.length > 22 
+                                              ? 'text-[11px]' 
+                                              : 'text-xs'
+                                        }`}
+                                        style={{
+                                          display: '-webkit-box',
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: 'vertical',
+                                          overflow: 'hidden'
+                                        }}
+                                      >
+                                        {s.name}
+                                      </h4>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
+                                        ID: {s.id}
+                                      </span>
+                                      <span className="bg-emerald-100 text-emerald-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
+                                        KELAS: {s.class}
+                                      </span>
+                                    </div>
+
+                                    <div className="pt-1 text-[8px] text-slate-600 space-y-0.5 border-t border-slate-200">
+                                      <p className="break-all">
+                                        <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
+                                      </p>
+                                      <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="bg-white p-1 rounded-lg border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
+                                    <img 
+                                      src={qrUrl} 
+                                      alt={`QR ${s.id}`} 
+                                      className="w-16 h-16 object-contain rounded"
+                                    />
+                                    <p className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
+                                  </div>
+                                </div>
+
+                                <div className="bg-slate-900 px-3 py-1 flex items-center justify-between text-[8px] text-slate-400">
+                                  <span>Kad ID Rasmi SK Sungai Bayan</span>
+                                  <span className="font-mono text-amber-400">MUKA DEPAN</span>
+                                </div>
+                              </div>
+
+                              {/* BACK OF THE ID CARD (DESIGN FOR HARD PRINTING) */}
+                              <div 
+                                className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between p-3 relative"
+                                style={{ minHeight: '220px' }}
+                              >
+                                <div className="text-center border-b border-white/10 pb-2">
                                   <img 
                                     src="/logo.png" 
                                     alt="SK Sungai Bayan" 
-                                    className="w-6 h-6 object-contain bg-white/10 rounded p-0.5"
+                                    className="w-8 h-8 object-contain mx-auto mb-1 bg-white/10 p-0.5 rounded"
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                   />
-                                  <div>
-                                    <h3 className="font-extrabold text-[11px] tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
-                                    <p className="text-[8px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
-                                  </div>
+                                  <h3 className="font-black text-xs text-amber-400 tracking-wider">SK SUNGAI BAYAN</h3>
+                                  <p className="text-[8px] text-slate-300">PANDUAN & SYARAT PENGGUNAAN KAD</p>
                                 </div>
-                                <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-widest">
-                                  2026
-                                </span>
-                              </div>
 
-                              <div className="p-3 flex items-center justify-between gap-2.5 bg-slate-50/50 flex-1 overflow-hidden">
-                                <div className="space-y-1 flex-1 min-w-0 pr-1">
+                                <div className="text-[8px] text-slate-300 space-y-1 my-auto px-1">
+                                  <p>• Kad ini adalah hak milik rasmi <strong>SK Sungai Bayan</strong>.</p>
+                                  <p>• Murid wajib membawa kad ini setiap hari persekolahan untuk tujuan imbasan e-Hadir.</p>
+                                  <p>• Jika kad ini ditemui, sila serahkan kepada pihak pentadbiran sekolah.</p>
+                                </div>
+
+                                <div className="border-t border-white/10 pt-2 flex items-center justify-between text-[8px]">
                                   <div>
-                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
-                                    <h4 
-                                      className={`font-black text-slate-900 leading-tight uppercase break-words ${
-                                        s.name.length > 30 
-                                          ? 'text-[10px]' 
-                                          : s.name.length > 22 
-                                            ? 'text-[11px]' 
-                                            : 'text-xs'
-                                      }`}
-                                      style={{
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: 2,
-                                        WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden'
-                                      }}
-                                    >
-                                      {s.name}
-                                    </h4>
+                                    <p className="text-slate-400">Tandatangan Pengetua / Guru Besar:</p>
+                                    <div className="h-6 border-b border-dashed border-slate-500 w-24 my-0.5"></div>
+                                    <p className="font-bold text-amber-300">SK SUNGAI BAYAN</p>
                                   </div>
 
-                                  <div className="flex flex-wrap items-center gap-1">
-                                    <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
-                                      ID: {s.id}
-                                    </span>
-                                    <span className="bg-emerald-100 text-emerald-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
-                                      KELAS: {s.class}
+                                  <div className="text-right">
+                                    <span className="inline-block bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black text-[7px] uppercase">
+                                      Muka Belakang
                                     </span>
                                   </div>
-
-                                  <div className="pt-1 text-[8px] text-slate-600 space-y-0.5 border-t border-slate-200">
-                                    <p className="break-all">
-                                      <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
-                                    </p>
-                                    <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
-                                  </div>
-                                </div>
-
-                                <div className="bg-white p-1 rounded-lg border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
-                                  <img 
-                                    src={qrUrl} 
-                                    alt={`QR ${s.id}`} 
-                                    className="w-16 h-16 object-contain rounded"
-                                  />
-                                  <p className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
                                 </div>
                               </div>
-
-                              <div className="bg-slate-900 px-3 py-1 flex items-center justify-between text-[8px] text-slate-400">
-                                <span>Kad ID Rasmi SK Sungai Bayan</span>
-                                <span className="font-mono text-amber-400">E-HADIR DIGITAL</span>
-                              </div>
-                            </div>
+                            </React.Fragment>
                           );
                         })}
                       </div>
