@@ -129,7 +129,6 @@ export default function App() {
 
   const availableClasses = Array.from(new Set(students.map(s => s.class)));
 
-  // Helper to set date to today
   const setToToday = () => {
     const today = new Date().toISOString().split('T')[0];
     setSelectedDate(today);
@@ -664,6 +663,10 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <style>{`
         @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           body { background: white !important; color: black !important; }
           header, nav, .no-print { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
@@ -1476,7 +1479,7 @@ export default function App() {
                                     </div>
 
                                     <div className="pt-1 text-[8px] text-slate-600 space-y-0.5 border-t border-slate-200">
-                                      <p className="break-all">
+                                      <p style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                                         <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
                                       </p>
                                       <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
