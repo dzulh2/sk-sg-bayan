@@ -11,11 +11,10 @@ const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF
 const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbyM_nTKRqH36YZCv0qKxRA8EPWB1_rdUk2jn2mEgCoY8p8AJDlQc8L7v8N8XU2CrYXi/exec"; 
 
 const INITIAL_STUDENTS = [
-  { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', phone: '012-3456789', qr_token: 'SB20260001' },
-  { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', phone: '013-9876543', qr_token: 'SB20260002' },
-  { id: 'SB20260003', name: 'ADELLSON GANING ANAK JEMMY', year: '1', class: '1 FAJAR', gender: 'L', status: 'Active', guardian: 'm-11223344@moe-dl.edu.my', phone: '014-1234567', qr_token: 'SB20260003' },
-  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', phone: '015-9876543', qr_token: 'SB20260004' },
-  { id: 'SB20270001', name: 'MOHD RYAN BIN RIZAL', year: '1', class: '1 FAJAR', gender: 'L', status: 'Incoming', guardian: 'm-99887766@moe-dl.edu.my', phone: '016-1122334', qr_token: 'SB20270001' }
+  { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', qr_token: 'SB20260001' },
+  { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', qr_token: 'SB20260002' },
+  { id: 'SB20260003', name: 'ADELLSON GANING ANAK JEMMY', year: '1', class: '1 FAJAR', gender: 'L', status: 'Active', guardian: 'm-11223344@moe-dl.edu.my', qr_token: 'SB20260003' },
+  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', qr_token: 'SB20260004' }
 ];
 
 const INITIAL_ATTENDANCE = [];
@@ -38,11 +37,10 @@ const parseCSV = (csvText) => {
 
   for (let i = 0; i < lines.length; i++) {
     const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"|"$/g, ''));
-    const cleanValues = values.filter(v => v !== '');
-    if (cleanValues.length < 2) continue;
+    if (values.length < 2) continue;
 
-    const firstCol = cleanValues[0] || '';
-    const secondCol = cleanValues[1] || '';
+    const firstCol = values[0] || '';
+    const secondCol = values[1] || '';
 
     if (
       firstCol.toLowerCase().includes('no id') || 
@@ -52,18 +50,27 @@ const parseCSV = (csvText) => {
       continue;
     }
 
-    const studentId = cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`;
-    const statusVal = cleanValues[7] ? cleanValues[7].trim() : 'Active';
+    const studentId = values[0] || `SB2026${String(i).padStart(4, '0')}`;
+    
+    // Check last provided column for status or default to Active
+    let detectedStatus = 'Active';
+    const lastVal = values[values.length - 1] ? values[values.length - 1].trim() : '';
+    if (['active', 'aktif', 'incoming', 'graduated', 'alumni'].includes(lastVal.toLowerCase())) {
+      detectedStatus = lastVal;
+    } else if (values[7] && ['active', 'aktif', 'incoming', 'graduated', 'alumni'].includes(values[7].trim().toLowerCase())) {
+      detectedStatus = values[7].trim();
+    } else if (values[6] && ['active', 'aktif', 'incoming', 'graduated', 'alumni'].includes(values[6].trim().toLowerCase())) {
+      detectedStatus = values[6].trim();
+    }
 
     parsedStudents.push({
       id: studentId,
-      name: cleanValues[1] || 'TANPA NAMA',
-      gender: (cleanValues[2] || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
-      year: cleanValues[3] || '1',
-      class: cleanValues[4] || '1 FAJAR',
-      guardian: cleanValues[5] || '-', 
-      phone: cleanValues[6] || '-',
-      status: statusVal,
+      name: values[1] || 'TANPA NAMA',
+      gender: (values[2] || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
+      year: values[3] || '1',
+      class: values[4] || '1 FAJAR',
+      guardian: values[5] || '-', 
+      status: detectedStatus,
       qr_token: studentId
     });
   }
@@ -129,12 +136,12 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // 1. Active students eligible for daily attendance rosters and dashboard statistics
+  // Strictly Active Students for Daily Attendance and Roster Stats
   const activeStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || s.status.toLowerCase() === 'aktif'
   );
 
-  // 2. Printable students eligible for ID Card Generation (Active + Incoming pre-registered kids)
+  // All printable students (Active + Incoming pre-registered kids)
   const printableStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || 
          s.status.toLowerCase() === 'aktif' || 
@@ -481,7 +488,7 @@ export default function App() {
     }, 5000);
   };
 
-  // Card print filtering logic handling "Incoming" status and year/class filters
+  // Card print filtering logic
   const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter)
     ? printableStudents 
     : printableStudents.filter(s => 
@@ -689,8 +696,9 @@ export default function App() {
           body { background: white !important; color: black !important; }
           header, nav, .no-print { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
-          .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 10px !important; }
-          .id-card, .id-card-back { page-break-inside: avoid; break-inside: avoid; border: 2px solid #1e293b !important; box-shadow: none !important; }
+          .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; padding: 0 !important; }
+          .card-pair { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 12px !important; }
+          .id-card, .id-card-back { page-break-inside: avoid !important; break-inside: avoid !important; border: 2px solid #1e293b !important; box-shadow: none !important; }
         }
       `}</style>
 
@@ -1447,13 +1455,13 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="print-area space-y-4">
                         {printFilteredStudents.map(s => {
                           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
                           const admissionYear = s.id.match(/\d{4}/) ? s.id.match(/\d{4}/)[0] : '2026';
                           
                           return (
-                            <React.Fragment key={s.id}>
+                            <div key={s.id} className="card-pair grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* FRONT OF THE ID CARD */}
                               <div 
                                 className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
@@ -1504,13 +1512,15 @@ export default function App() {
                                       <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
                                         NO ID: {s.id}
                                       </span>
+                                      <span className="bg-emerald-100 text-emerald-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
+                                        KELAS: {s.class}
+                                      </span>
                                     </div>
 
-                                    <div className="pt-1 text-[8px] text-slate-600 space-y-0.5 border-t border-slate-200">
+                                    <div className="pt-1 text-[8px] text-slate-600 border-t border-slate-200">
                                       <p style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                                         <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
                                       </p>
-                                      <p><span className="font-bold text-slate-800">No. Tel:</span> {s.phone}</p>
                                     </div>
                                   </div>
 
@@ -1525,7 +1535,7 @@ export default function App() {
                                 </div>
 
                                 <div className="bg-slate-900 px-3 py-1 flex items-center justify-between text-[8px] text-slate-400">
-                                  <span>Sah Digunakan: Tahun 1 - Tahun 6</span>
+                                  <span>Kad ID Rasmi SK Sungai Bayan</span>
                                   <span className="font-mono text-amber-400">MUKA DEPAN</span>
                                 </div>
                               </div>
@@ -1567,7 +1577,7 @@ export default function App() {
                                   </div>
                                 </div>
                               </div>
-                            </React.Fragment>
+                            </div>
                           );
                         })}
                       </div>
@@ -1750,7 +1760,6 @@ export default function App() {
 
                         <div className="text-[10px] text-slate-600 space-y-0.5 bg-slate-50 p-2 rounded-lg border border-slate-100">
                           <p className="truncate"><span className="font-semibold text-slate-700">Emel DELIMA:</span> {s.guardian}</p>
-                          <p><span className="font-semibold text-slate-700">No. Tel:</span> {s.phone}</p>
                         </div>
                       </div>
                     ))}
