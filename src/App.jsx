@@ -3,7 +3,7 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle, Award,
-  Maximize2, Minimize2, RotateCcw, Clock
+  Maximize2, Minimize2, RotateCcw, Clock, Filter
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -14,7 +14,8 @@ const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', phone: '012-3456789', qr_token: 'SB20260001' },
   { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', phone: '013-9876543', qr_token: 'SB20260002' },
   { id: 'SB20260003', name: 'ADELLSON GANING ANAK JEMMY', year: '1', class: '1 FAJAR', gender: 'L', status: 'Active', guardian: 'm-11223344@moe-dl.edu.my', phone: '014-1234567', qr_token: 'SB20260003' },
-  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', phone: '015-9876543', qr_token: 'SB20260004' }
+  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', phone: '015-9876543', qr_token: 'SB20260004' },
+  { id: 'SB20270001', name: 'MOHD RYAN BIN RIZAL', year: '1', class: '1 FAJAR', gender: 'L', status: 'Incoming', guardian: 'm-99887766@moe-dl.edu.my', phone: '016-1122334', qr_token: 'SB20270001' }
 ];
 
 const INITIAL_ATTENDANCE = [];
@@ -52,6 +53,7 @@ const parseCSV = (csvText) => {
     }
 
     const studentId = cleanValues[0] || `SB2026${String(i).padStart(4, '0')}`;
+    const statusVal = cleanValues[7] ? cleanValues[7].trim() : 'Active';
 
     parsedStudents.push({
       id: studentId,
@@ -61,7 +63,7 @@ const parseCSV = (csvText) => {
       class: cleanValues[4] || '1 FAJAR',
       guardian: cleanValues[5] || '-', 
       phone: cleanValues[6] || '-',
-      status: 'Active',
+      status: statusVal,
       qr_token: studentId
     });
   }
@@ -127,7 +129,19 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  const availableClasses = Array.from(new Set(students.map(s => s.class)));
+  // 1. Active students eligible for daily attendance rosters and dashboard statistics
+  const activeStudents = students.filter(
+    s => s.status.toLowerCase() === 'active' || s.status.toLowerCase() === 'aktif'
+  );
+
+  // 2. Printable students eligible for ID Card Generation (Active + Incoming pre-registered kids)
+  const printableStudents = students.filter(
+    s => s.status.toLowerCase() === 'active' || 
+         s.status.toLowerCase() === 'aktif' || 
+         s.status.toLowerCase() === 'incoming'
+  );
+
+  const availableClasses = Array.from(new Set(activeStudents.map(s => s.class)));
 
   const setToToday = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -239,7 +253,7 @@ export default function App() {
     const rawCode = scannedCode.trim();
     const cleanCode = rawCode.toLowerCase();
 
-    const foundStudent = students.find(s => {
+    const foundStudent = activeStudents.find(s => {
       const studentId = (s.id || '').trim().toLowerCase();
       const qrToken = (s.qr_token || '').trim().toLowerCase();
       
@@ -284,7 +298,7 @@ export default function App() {
       setScanResult({
         success: false,
         student: null,
-        message: `KOD QR TIDAK DITEMUI: "${rawCode}" tiada dalam senarai murid.`
+        message: `KOD QR TIDAK DITEMUI ATAU MURID TIDAK AKTIF: "${rawCode}".`
       });
     }
   };
@@ -369,7 +383,7 @@ export default function App() {
   };
 
   const markAllPresent = () => {
-    const classStudents = students.filter(s => s.class === selectedClass);
+    const classStudents = activeStudents.filter(s => s.class === selectedClass);
     const updated = classStudents.map(s => ({
       student_id: s.id,
       date: selectedDate,
@@ -384,7 +398,7 @@ export default function App() {
 
   const handleResetDailyAttendance = async () => {
     if (window.confirm(`Adakah anda pasti untuk RESET semua rekod kehadiran kelas ${selectedClass} pada tarikh ${formatDateDMY(selectedDate)}?`)) {
-      const classStudentIds = students.filter(s => s.class === selectedClass).map(s => s.id);
+      const classStudentIds = activeStudents.filter(s => s.class === selectedClass).map(s => s.id);
       
       setAttendance(prev => prev.filter(a => !(a.date === selectedDate && classStudentIds.includes(a.student_id))));
       setSaveMessage(`Mereset rekod kelas ${selectedClass} pada peranti dan awan...`);
@@ -439,7 +453,7 @@ export default function App() {
     setIsSavingAttendance(true);
     setSaveMessage('Sedang menyimpan rekod kehadiran ke pangkalan data awan...');
 
-    const classStudents = students.filter(s => s.class === selectedClass);
+    const classStudents = activeStudents.filter(s => s.class === selectedClass);
     const recordsToSync = attendance.filter(a => 
       a.date === selectedDate && classStudents.some(cs => cs.id === a.student_id)
     );
@@ -467,9 +481,14 @@ export default function App() {
     }, 5000);
   };
 
+  // Card print filtering logic handling "Incoming" status and year/class filters
   const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter)
-    ? students 
-    : students.filter(s => s.class === printClassFilter);
+    ? printableStudents 
+    : printableStudents.filter(s => 
+        s.class === printClassFilter || 
+        s.year === printClassFilter || 
+        s.status.toLowerCase() === printClassFilter.toLowerCase()
+      );
 
   const getUniqueAttendanceForDate = (date) => {
     const rawList = attendance.filter(a => a.date === date);
@@ -482,14 +501,14 @@ export default function App() {
 
   const filteredAttendanceByDate = getUniqueAttendanceForDate(selectedDate);
 
-  const totalSchoolStudents = students.length;
+  const totalSchoolStudents = activeStudents.length;
   const totalSchoolHadir = filteredAttendanceByDate.filter(a => a.status === 'Hadir').length;
   const totalSchoolPercent = totalSchoolStudents > 0 ? Math.round((totalSchoolHadir / totalSchoolStudents) * 100) : 0;
 
   const getDetailedClassStats = (className) => {
     const classStudents = className === 'Semua Kelas' 
-      ? students 
-      : students.filter(s => s.class === className);
+      ? activeStudents 
+      : activeStudents.filter(s => s.class === className);
 
     const totalStudents = classStudents.length;
 
@@ -570,7 +589,7 @@ export default function App() {
       return d.getMonth() === monthIdx;
     });
 
-    const classStudents = className === 'Semua Kelas' ? students : students.filter(s => s.class === className);
+    const classStudents = className === 'Semua Kelas' ? activeStudents : activeStudents.filter(s => s.class === className);
     if (classStudents.length === 0) return { percent: 0, totalHadir: 0, totalRecords: 0 };
 
     let totalHadir = 0;
@@ -599,8 +618,8 @@ export default function App() {
 
   const getPerfectAttendanceStudents = () => {
     const targetStudents = (certFilterClass === 'Semua' || !certFilterClass)
-      ? students 
-      : students.filter(s => s.class === certFilterClass);
+      ? activeStudents 
+      : activeStudents.filter(s => s.class === certFilterClass);
 
     return targetStudents.filter(st => {
       const studentRecords = attendance.filter(a => a.student_id === st.id);
@@ -903,7 +922,7 @@ export default function App() {
                 className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'students' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
               >
                 <Users className="w-4 h-4" />
-                <span>Direktori Murid ({students.length})</span>
+                <span>Direktori Murid ({activeStudents.length})</span>
               </button>
 
               {isAdmin && (
@@ -962,7 +981,7 @@ export default function App() {
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Jumlah Murid Aktif</p>
                       <p className="text-xl font-bold text-slate-900 mt-0.5">{totalSchoolStudents}</p>
                     </div>
                     <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm border-l-4 border-l-emerald-500">
@@ -1322,7 +1341,7 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {students.filter(s => s.class === selectedClass).map(s => {
+                        {activeStudents.filter(s => s.class === selectedClass).map(s => {
                           const att = filteredAttendanceByDate.find(a => a.student_id === s.id);
                           return (
                             <tr key={s.id} className="hover:bg-slate-50/80">
@@ -1392,7 +1411,7 @@ export default function App() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print bg-indigo-900 text-white p-4 rounded-xl shadow-md">
                         <div>
                           <h2 className="text-lg font-bold">Penjana Kad Matrik & QR Murid</h2>
-                          <p className="text-indigo-200 text-xs">Cetak Kad ID murid bertema SK Sungai Bayan lengkap dengan Muka Depan & Muka Belakang untuk kad keras.</p>
+                          <p className="text-indigo-200 text-xs">Pilih penapis untuk mencetak kad murid aktif atau murid pendaftaran baru (Incoming).</p>
                         </div>
 
                         <div className="flex items-center space-x-2">
@@ -1401,10 +1420,21 @@ export default function App() {
                             onChange={e => setPrintClassFilter(e.target.value)}
                             className="bg-white text-slate-900 text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none"
                           >
-                            <option value="Semua">Semua Kelas ({students.length})</option>
-                            {availableClasses.map(c => (
-                              <option key={c} value={c}>Kelas {c}</option>
-                            ))}
+                            <option value="Semua">Semua Murid ({printableStudents.length})</option>
+                            <option value="incoming">Murid Incoming Sahaja ({students.filter(s => s.status.toLowerCase() === 'incoming').length})</option>
+                            <optgroup label="Mengikut Tahun Kemasukan / Darjah">
+                              <option value="1">Tahun 1 Sahaja</option>
+                              <option value="2">Tahun 2 Sahaja</option>
+                              <option value="3">Tahun 3 Sahaja</option>
+                              <option value="4">Tahun 4 Sahaja</option>
+                              <option value="5">Tahun 5 Sahaja</option>
+                              <option value="6">Tahun 6 Sahaja</option>
+                            </optgroup>
+                            <optgroup label="Mengikut Kelas Spesifik">
+                              {Array.from(new Set(printableStudents.map(s => s.class))).map(c => (
+                                <option key={c} value={c}>Kelas {c}</option>
+                              ))}
+                            </optgroup>
                           </select>
 
                           <button 
@@ -1420,6 +1450,7 @@ export default function App() {
                       <div className="print-area grid grid-cols-1 md:grid-cols-2 gap-4">
                         {printFilteredStudents.map(s => {
                           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
+                          const admissionYear = s.id.match(/\d{4}/) ? s.id.match(/\d{4}/)[0] : '2026';
                           
                           return (
                             <React.Fragment key={s.id}>
@@ -1441,8 +1472,8 @@ export default function App() {
                                       <p className="text-[8px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
                                     </div>
                                   </div>
-                                  <span className="text-[9px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-widest">
-                                    2026
+                                  <span className="text-[8px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-widest uppercase">
+                                    KEMASUKAN: {admissionYear}
                                   </span>
                                 </div>
 
@@ -1471,10 +1502,7 @@ export default function App() {
 
                                     <div className="flex flex-wrap items-center gap-1">
                                       <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
-                                        ID: {s.id}
-                                      </span>
-                                      <span className="bg-emerald-100 text-emerald-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
-                                        KELAS: {s.class}
+                                        NO ID: {s.id}
                                       </span>
                                     </div>
 
@@ -1497,12 +1525,12 @@ export default function App() {
                                 </div>
 
                                 <div className="bg-slate-900 px-3 py-1 flex items-center justify-between text-[8px] text-slate-400">
-                                  <span>Kad ID Rasmi SK Sungai Bayan</span>
+                                  <span>Sah Digunakan: Tahun 1 - Tahun 6</span>
                                   <span className="font-mono text-amber-400">MUKA DEPAN</span>
                                 </div>
                               </div>
 
-                              {/* BACK OF THE ID CARD (DESIGN FOR HARD PRINTING) */}
+                              {/* BACK OF THE ID CARD */}
                               <div 
                                 className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between p-3 relative"
                                 style={{ minHeight: '220px' }}
@@ -1520,13 +1548,14 @@ export default function App() {
 
                                 <div className="text-[8px] text-slate-300 space-y-1 my-auto px-1">
                                   <p>• Kad ini adalah hak milik rasmi <strong>SK Sungai Bayan</strong>.</p>
-                                  <p>• Murid wajib membawa kad ini setiap hari persekolahan untuk tujuan imbasan e-Hadir.</p>
-                                  <p>• Jika kad ini ditemui, sila serahkan kepada pihak pentadbiran sekolah.</p>
+                                  <p>• Kad ini terpakai sepanjang tempoh persekolahan murid (Tahun 1 hingga Tahun 6).</p>
+                                  <p>• Wajib dibawa setiap hari untuk tujuan imbasan e-Hadir di pintu pagar sekolah.</p>
+                                  <p>• Jika ditemui, sila serahkan kepada pihak pentadbiran sekolah.</p>
                                 </div>
 
                                 <div className="border-t border-white/10 pt-2 flex items-center justify-between text-[8px]">
                                   <div>
-                                    <p className="text-slate-400">Tandatangan Pengetua / Guru Besar:</p>
+                                    <p className="text-slate-400">Tandatangan Pentadbir:</p>
                                     <div className="h-6 border-b border-dashed border-slate-500 w-24 my-0.5"></div>
                                     <p className="font-bold text-amber-300">SK SUNGAI BAYAN</p>
                                   </div>
@@ -1562,7 +1591,7 @@ export default function App() {
                             onChange={e => setCertFilterClass(e.target.value)}
                             className="bg-white text-slate-900 text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none"
                           >
-                            <option value="Semua">Semua Kelas ({students.length})</option>
+                            <option value="Semua">Semua Kelas ({activeStudents.length})</option>
                             {availableClasses.map(c => (
                               <option key={c} value={c}>Kelas {c}</option>
                             ))}
@@ -1613,7 +1642,7 @@ export default function App() {
                               <h2 className="text-2xl font-black text-amber-700 uppercase underline decoration-amber-400 decoration-2">{s.name}</h2>
                               <p className="text-xs font-bold text-slate-800">NO ID: {s.id} &nbsp;|&nbsp; KELAS: {s.class}</p>
                               <p className="text-sm text-slate-700 max-w-xl mx-auto leading-relaxed">
-                                Telah mencapai rekod <strong>Kehadiran 100% (Penuh)</strong> bagi sesi persekolahan 2026 atas komitmen dan disiplin cemerlang yang ditunjukkan.
+                                Telah mencapai rekod <strong>Kehadiran 100% (Penuh)</strong> atas komitmen dan disiplin cemerlang yang ditunjukkan.
                               </p>
                             </div>
 
@@ -1693,7 +1722,7 @@ export default function App() {
               {activeTab === 'students' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-800">Direktori Murid ({students.length})</h2>
+                    <h2 className="text-lg font-bold text-slate-800">Direktori Murid Aktif ({activeStudents.length})</h2>
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                       <input 
@@ -1707,7 +1736,7 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {students.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.includes(searchQuery)).map(s => (
+                    {activeStudents.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.includes(searchQuery)).map(s => (
                       <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
                         <div className="flex items-start justify-between">
                           <div>
