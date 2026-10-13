@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
-  CreditCard, Save, BarChart3, ChevronRight, UserX, Percent, Trophy, AlertTriangle, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Filter
+  CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
+  Maximize2, Minimize2, RotateCcw, Clock
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -14,7 +14,8 @@ const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', qr_token: 'SB20260001' },
   { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', qr_token: 'SB20260002' },
   { id: 'SB20260003', name: 'ADELLSON GANING ANAK JEMMY', year: '1', class: '1 FAJAR', gender: 'L', status: 'Active', guardian: 'm-11223344@moe-dl.edu.my', qr_token: 'SB20260003' },
-  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', qr_token: 'SB20260004' }
+  { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', qr_token: 'SB20260004' },
+  { id: 'SB20270001', name: 'MOHD RYAN BIN RIZAL', year: '1', class: '1 FAJAR', gender: 'L', status: 'Incoming', guardian: 'm-99887766@moe-dl.edu.my', qr_token: 'SB20270001' }
 ];
 
 const INITIAL_ATTENDANCE = [];
@@ -52,7 +53,6 @@ const parseCSV = (csvText) => {
 
     const studentId = values[0] || `SB2026${String(i).padStart(4, '0')}`;
     
-    // Check last provided column for status or default to Active
     let detectedStatus = 'Active';
     const lastVal = values[values.length - 1] ? values[values.length - 1].trim() : '';
     if (['active', 'aktif', 'incoming', 'graduated', 'alumni'].includes(lastVal.toLowerCase())) {
@@ -136,12 +136,17 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // Strictly Active Students for Daily Attendance and Roster Stats
+  // Strictly Active Students for Daily Attendance, Directory, and Dashboard
   const activeStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || s.status.toLowerCase() === 'aktif'
   );
 
-  // All printable students (Active + Incoming pre-registered kids)
+  // Incoming Students
+  const incomingStudents = students.filter(
+    s => s.status.toLowerCase() === 'incoming'
+  );
+
+  // All printable students (Active + Incoming)
   const printableStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || 
          s.status.toLowerCase() === 'aktif' || 
@@ -149,6 +154,7 @@ export default function App() {
   );
 
   const availableClasses = Array.from(new Set(activeStudents.map(s => s.class)));
+  const incomingClasses = Array.from(new Set(incomingStudents.map(s => s.class)));
 
   const setToToday = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -488,14 +494,26 @@ export default function App() {
     }, 5000);
   };
 
-  // Card print filtering logic
-  const printFilteredStudents = (printClassFilter === 'Semua' || !printClassFilter)
-    ? printableStudents 
-    : printableStudents.filter(s => 
-        s.class === printClassFilter || 
-        s.year === printClassFilter || 
-        s.status.toLowerCase() === printClassFilter.toLowerCase()
-      );
+  // Printing Filter Handler: Active or Incoming Categories & Classes
+  const getFilteredPrintStudents = () => {
+    if (printClassFilter === 'Semua') return printableStudents;
+    if (printClassFilter === 'active_all') return activeStudents;
+    if (printClassFilter === 'incoming_all') return incomingStudents;
+
+    if (printClassFilter.startsWith('active_class_')) {
+      const className = printClassFilter.replace('active_class_', '');
+      return activeStudents.filter(s => s.class === className);
+    }
+
+    if (printClassFilter.startsWith('incoming_class_')) {
+      const className = printClassFilter.replace('incoming_class_', '');
+      return incomingStudents.filter(s => s.class === className);
+    }
+
+    return printableStudents;
+  };
+
+  const printFilteredStudents = getFilteredPrintStudents();
 
   const getUniqueAttendanceForDate = (date) => {
     const rawList = attendance.filter(a => a.date === date);
@@ -693,12 +711,26 @@ export default function App() {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          body { background: white !important; color: black !important; }
+          body { background: white !important; color: black !important; margin: 0 !important; padding: 0 !important; }
           header, nav, .no-print { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
-          .print-area { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; padding: 0 !important; }
-          .card-pair { page-break-inside: avoid !important; break-inside: avoid !important; margin-bottom: 12px !important; }
-          .id-card, .id-card-back { page-break-inside: avoid !important; break-inside: avoid !important; border: 2px solid #1e293b !important; box-shadow: none !important; }
+          .print-area { display: block !important; padding: 0 !important; }
+          .card-wrapper { 
+            page-break-inside: avoid !important; 
+            break-inside: avoid !important; 
+            margin-bottom: 16px !important; 
+            display: grid !important; 
+            grid-template-columns: repeat(2, 1fr) !important; 
+            gap: 12px !important; 
+          }
+          .id-card, .id-card-back { 
+            page-break-inside: avoid !important; 
+            break-inside: avoid !important; 
+            border: 2px solid #1e293b !important; 
+            box-shadow: none !important; 
+            height: 220px !important; 
+            box-sizing: border-box !important; 
+          }
         }
       `}</style>
 
@@ -1419,7 +1451,7 @@ export default function App() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print bg-indigo-900 text-white p-4 rounded-xl shadow-md">
                         <div>
                           <h2 className="text-lg font-bold">Penjana Kad Matrik & QR Murid</h2>
-                          <p className="text-indigo-200 text-xs">Pilih penapis untuk mencetak kad murid aktif atau murid pendaftaran baru (Incoming).</p>
+                          <p className="text-indigo-200 text-xs">Pilih kategori murid aktif atau pendaftaran baru (Incoming) untuk cetakan kad.</p>
                         </div>
 
                         <div className="flex items-center space-x-2">
@@ -1429,20 +1461,26 @@ export default function App() {
                             className="bg-white text-slate-900 text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none"
                           >
                             <option value="Semua">Semua Murid ({printableStudents.length})</option>
-                            <option value="incoming">Murid Incoming Sahaja ({students.filter(s => s.status.toLowerCase() === 'incoming').length})</option>
-                            <optgroup label="Mengikut Tahun Kemasukan / Darjah">
-                              <option value="1">Tahun 1 Sahaja</option>
-                              <option value="2">Tahun 2 Sahaja</option>
-                              <option value="3">Tahun 3 Sahaja</option>
-                              <option value="4">Tahun 4 Sahaja</option>
-                              <option value="5">Tahun 5 Sahaja</option>
-                              <option value="6">Tahun 6 Sahaja</option>
-                            </optgroup>
-                            <optgroup label="Mengikut Kelas Spesifik">
-                              {Array.from(new Set(printableStudents.map(s => s.class))).map(c => (
-                                <option key={c} value={c}>Kelas {c}</option>
+                            
+                            <optgroup label="--- MURID AKTIF (Tahun Semasa) ---">
+                              <option value="active_all">Semua Murid Aktif ({activeStudents.length})</option>
+                              {availableClasses.map(c => (
+                                <option key={`act-${c}`} value={`active_class_${c}`}>
+                                  Kelas {c}
+                                </option>
                               ))}
                             </optgroup>
+
+                            {incomingStudents.length > 0 && (
+                              <optgroup label="--- MURID INCOMING (Pendaftaran Baru) ---">
+                                <option value="incoming_all">Semua Murid Incoming ({incomingStudents.length})</option>
+                                {incomingClasses.map(c => (
+                                  <option key={`inc-${c}`} value={`incoming_class_${c}`}>
+                                    Kelas {c} (Incoming)
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
 
                           <button 
@@ -1458,14 +1496,13 @@ export default function App() {
                       <div className="print-area space-y-4">
                         {printFilteredStudents.map(s => {
                           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
-                          const admissionYear = s.id.match(/\d{4}/) ? s.id.match(/\d{4}/)[0] : '2026';
                           
                           return (
-                            <div key={s.id} className="card-pair grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div key={s.id} className="card-wrapper grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* FRONT OF THE ID CARD */}
                               <div 
                                 className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
-                                style={{ minHeight: '220px' }}
+                                style={{ height: '220px' }}
                               >
                                 <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-2 flex items-center justify-between border-b-2 border-amber-400">
                                   <div className="flex items-center space-x-2">
@@ -1480,13 +1517,10 @@ export default function App() {
                                       <p className="text-[8px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
                                     </div>
                                   </div>
-                                  <span className="text-[8px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black tracking-widest uppercase">
-                                    KEMASUKAN: {admissionYear}
-                                  </span>
                                 </div>
 
                                 <div className="p-3 flex items-center justify-between gap-2.5 bg-slate-50/50 flex-1 overflow-hidden">
-                                  <div className="space-y-1 flex-1 min-w-0 pr-1">
+                                  <div className="space-y-1.5 flex-1 min-w-0 pr-1">
                                     <div>
                                       <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
                                       <h4 
@@ -1508,12 +1542,9 @@ export default function App() {
                                       </h4>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-1">
-                                      <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
+                                    <div className="flex items-center gap-1">
+                                      <span className="bg-blue-100 text-blue-900 text-[9px] font-black px-2 py-0.5 rounded border border-blue-300">
                                         NO ID: {s.id}
-                                      </span>
-                                      <span className="bg-emerald-100 text-emerald-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-emerald-300">
-                                        KELAS: {s.class}
                                       </span>
                                     </div>
 
@@ -1543,7 +1574,7 @@ export default function App() {
                               {/* BACK OF THE ID CARD */}
                               <div 
                                 className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between p-3 relative"
-                                style={{ minHeight: '220px' }}
+                                style={{ height: '220px' }}
                               >
                                 <div className="text-center border-b border-white/10 pb-2">
                                   <img 
