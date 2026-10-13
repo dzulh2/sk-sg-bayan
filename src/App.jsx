@@ -706,23 +706,45 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
+
         @media print {
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          body { background: white !important; color: black !important; margin: 0 !important; padding: 0 !important; }
+          body { 
+            background: white !important; 
+            color: black !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+          }
           header, nav, .no-print { display: none !important; }
-          main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
-          .print-area { display: block !important; padding: 0 !important; }
+          main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; overflow: visible !important; }
+          
+          .print-area { 
+            display: block !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            width: 100% !important; 
+          }
+
           .card-wrapper { 
             page-break-inside: avoid !important; 
             break-inside: avoid !important; 
-            margin-bottom: 16px !important; 
+            -webkit-column-break-inside: avoid !important;
+            margin-bottom: 12px !important; 
             display: grid !important; 
             grid-template-columns: repeat(2, 1fr) !important; 
             gap: 12px !important; 
+            height: 220px !important;
+            max-height: 220px !important;
+            overflow: hidden !important;
           }
+
           .id-card, .id-card-back { 
             page-break-inside: avoid !important; 
             break-inside: avoid !important; 
@@ -1493,17 +1515,14 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="print-area space-y-4">
+                      <div className="print-area">
                         {printFilteredStudents.map(s => {
                           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
                           
                           return (
-                            <div key={s.id} className="card-wrapper grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div key={s.id} className="card-wrapper">
                               {/* FRONT OF THE ID CARD */}
-                              <div 
-                                className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative"
-                                style={{ height: '220px' }}
-                              >
+                              <div className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative">
                                 <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-2 flex items-center justify-between border-b-2 border-amber-400">
                                   <div className="flex items-center space-x-2">
                                     <img 
@@ -1572,10 +1591,7 @@ export default function App() {
                               </div>
 
                               {/* BACK OF THE ID CARD */}
-                              <div 
-                                className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between p-3 relative"
-                                style={{ height: '220px' }}
-                              >
+                              <div className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between p-3 relative">
                                 <div className="text-center border-b border-white/10 pb-2">
                                   <img 
                                     src="/logo.png" 
