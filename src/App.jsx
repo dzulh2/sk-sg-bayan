@@ -3,7 +3,7 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock
+  Maximize2, Minimize2, RotateCcw, Clock, Filter
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -15,7 +15,7 @@ const INITIAL_STUDENTS = [
   { id: 'SB20260002', name: 'AHMAD ZIKRI BIN HASSAN', year: '5', class: '5 Bestari', gender: 'L', status: 'Active', guardian: 'm-87654321@moe-dl.edu.my', qr_token: 'SB20260002' },
   { id: 'SB20260003', name: 'ADELLSON GANING ANAK JEMMY', year: '1', class: '1 FAJAR', gender: 'L', status: 'Active', guardian: 'm-11223344@moe-dl.edu.my', qr_token: 'SB20260003' },
   { id: 'SB20260004', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Active', guardian: 'm-55667788@moe-dl.edu.my', qr_token: 'SB20260004' },
-  { id: 'SB20270001', name: 'MOHD RYAN BIN RIZAL', year: '1', class: '1 FAJAR', gender: 'L', status: 'Incoming', guardian: 'm-99887766@moe-dl.edu.my', qr_token: 'SB20270001' }
+  { id: 'SB20270001', name: 'AIREN ANTA WONG', year: '1', class: '1 FAJAR', gender: 'P', status: 'Incoming', guardian: 'm-55667788@moe-dl.edu.my', qr_token: 'SB20270001' }
 ];
 
 const INITIAL_ATTENDANCE = [];
@@ -122,6 +122,7 @@ export default function App() {
   const [selectedClass, setSelectedClass] = useState('1 FAJAR');
   const [dashboardDetailClass, setDashboardDetailClass] = useState('Semua Kelas');
   const [printClassFilter, setPrintClassFilter] = useState('Semua');
+  const [deduplicatePrint, setDeduplicatePrint] = useState(true);
   const [certFilterClass, setCertFilterClass] = useState('Semua');
   const [printSubTab, setPrintSubTab] = useState('cards');
 
@@ -494,23 +495,37 @@ export default function App() {
     }, 5000);
   };
 
-  // Printing Filter Handler: Active or Incoming Categories & Classes
+  // Printing Filter & Deduplication Handler
   const getFilteredPrintStudents = () => {
-    if (printClassFilter === 'Semua') return printableStudents;
-    if (printClassFilter === 'active_all') return activeStudents;
-    if (printClassFilter === 'incoming_all') return incomingStudents;
+    let rawList = printableStudents;
 
-    if (printClassFilter.startsWith('active_class_')) {
+    if (printClassFilter === 'active_all') {
+      rawList = activeStudents;
+    } else if (printClassFilter === 'incoming_all') {
+      rawList = incomingStudents;
+    } else if (printClassFilter.startsWith('active_class_')) {
       const className = printClassFilter.replace('active_class_', '');
-      return activeStudents.filter(s => s.class === className);
-    }
-
-    if (printClassFilter.startsWith('incoming_class_')) {
+      rawList = activeStudents.filter(s => s.class === className);
+    } else if (printClassFilter.startsWith('incoming_class_')) {
       const className = printClassFilter.replace('incoming_class_', '');
-      return incomingStudents.filter(s => s.class === className);
+      rawList = incomingStudents.filter(s => s.class === className);
     }
 
-    return printableStudents;
+    if (deduplicatePrint) {
+      const seenNames = new Set();
+      const uniqueList = [];
+
+      for (const student of rawList) {
+        const normalizedName = student.name.trim().toLowerCase();
+        if (!seenNames.has(normalizedName)) {
+          seenNames.add(normalizedName);
+          uniqueList.push(student);
+        }
+      }
+      return uniqueList;
+    }
+
+    return rawList;
   };
 
   const printFilteredStudents = getFilteredPrintStudents();
@@ -708,7 +723,7 @@ export default function App() {
       <style>{`
         @page {
           size: A4 portrait;
-          margin: 10mm;
+          margin: 8mm;
         }
 
         @media print {
@@ -736,21 +751,22 @@ export default function App() {
             page-break-inside: avoid !important; 
             break-inside: avoid !important; 
             -webkit-column-break-inside: avoid !important;
-            margin-bottom: 12px !important; 
+            margin-bottom: 8px !important; 
             display: grid !important; 
             grid-template-columns: repeat(2, 1fr) !important; 
-            gap: 12px !important; 
-            height: 220px !important;
-            max-height: 220px !important;
+            gap: 10px !important; 
+            height: 180px !important;
+            max-height: 180px !important;
             overflow: hidden !important;
+            box-sizing: border-box !important;
           }
 
           .id-card, .id-card-back { 
             page-break-inside: avoid !important; 
             break-inside: avoid !important; 
-            border: 2px solid #1e293b !important; 
+            border: 2px solid #0f172a !important; 
             box-shadow: none !important; 
-            height: 220px !important; 
+            height: 180px !important; 
             box-sizing: border-box !important; 
           }
         }
@@ -1476,7 +1492,17 @@ export default function App() {
                           <p className="text-indigo-200 text-xs">Pilih kategori murid aktif atau pendaftaran baru (Incoming) untuk cetakan kad.</p>
                         </div>
 
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="flex items-center space-x-1.5 bg-indigo-950/80 px-2.5 py-1.5 rounded-lg border border-indigo-700/50 cursor-pointer text-xs font-medium">
+                            <input 
+                              type="checkbox" 
+                              checked={deduplicatePrint}
+                              onChange={e => setDeduplicatePrint(e.target.checked)}
+                              className="rounded text-indigo-500 focus:ring-0 cursor-pointer"
+                            />
+                            <span>Tapis Murid Berulang (1 Kad / Murid)</span>
+                          </label>
+
                           <select 
                             value={printClassFilter} 
                             onChange={e => setPrintClassFilter(e.target.value)}
@@ -1515,40 +1541,40 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="print-area">
+                      <div className="print-area space-y-4">
                         {printFilteredStudents.map(s => {
                           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
                           
                           return (
-                            <div key={s.id} className="card-wrapper">
+                            <div key={s.id} className="card-wrapper my-4">
                               {/* FRONT OF THE ID CARD */}
-                              <div className="id-card bg-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between relative">
-                                <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-2 flex items-center justify-between border-b-2 border-amber-400">
+                              <div className="id-card bg-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between relative">
+                                <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-1.5 flex items-center justify-between border-b-2 border-amber-400">
                                   <div className="flex items-center space-x-2">
                                     <img 
                                       src="/logo.png" 
                                       alt="SK Sungai Bayan" 
-                                      className="w-6 h-6 object-contain bg-white/10 rounded p-0.5"
+                                      className="w-5 h-5 object-contain bg-white/10 rounded p-0.5"
                                       onError={(e) => { e.target.style.display = 'none'; }}
                                     />
                                     <div>
-                                      <h3 className="font-extrabold text-[11px] tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
-                                      <p className="text-[8px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
+                                      <h3 className="font-extrabold text-[10px] tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
+                                      <p className="text-[7px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="p-3 flex items-center justify-between gap-2.5 bg-slate-50/50 flex-1 overflow-hidden">
-                                  <div className="space-y-1.5 flex-1 min-w-0 pr-1">
+                                <div className="p-2.5 flex items-center justify-between gap-2 bg-slate-50/50 flex-1 overflow-hidden">
+                                  <div className="space-y-1 flex-1 min-w-0 pr-1">
                                     <div>
-                                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                                      <p className="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
                                       <h4 
                                         className={`font-black text-slate-900 leading-tight uppercase break-words ${
                                           s.name.length > 30 
-                                            ? 'text-[10px]' 
+                                            ? 'text-[9px]' 
                                             : s.name.length > 22 
-                                              ? 'text-[11px]' 
-                                              : 'text-xs'
+                                              ? 'text-[10px]' 
+                                              : 'text-[11px]'
                                         }`}
                                         style={{
                                           display: '-webkit-box',
@@ -1562,63 +1588,63 @@ export default function App() {
                                     </div>
 
                                     <div className="flex items-center gap-1">
-                                      <span className="bg-blue-100 text-blue-900 text-[9px] font-black px-2 py-0.5 rounded border border-blue-300">
+                                      <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
                                         NO ID: {s.id}
                                       </span>
                                     </div>
 
-                                    <div className="pt-1 text-[8px] text-slate-600 border-t border-slate-200">
+                                    <div className="pt-0.5 text-[7px] text-slate-600 border-t border-slate-200">
                                       <p style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                                         <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
                                       </p>
                                     </div>
                                   </div>
 
-                                  <div className="bg-white p-1 rounded-lg border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
+                                  <div className="bg-white p-1 rounded border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
                                     <img 
                                       src={qrUrl} 
                                       alt={`QR ${s.id}`} 
-                                      className="w-16 h-16 object-contain rounded"
+                                      className="w-14 h-14 object-contain rounded"
                                     />
-                                    <p className="text-[8px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
+                                    <p className="text-[7px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
                                   </div>
                                 </div>
 
-                                <div className="bg-slate-900 px-3 py-1 flex items-center justify-between text-[8px] text-slate-400">
+                                <div className="bg-slate-900 px-2.5 py-0.5 flex items-center justify-between text-[7px] text-slate-400">
                                   <span>Kad ID Rasmi SK Sungai Bayan</span>
                                   <span className="font-mono text-amber-400">MUKA DEPAN</span>
                                 </div>
                               </div>
 
                               {/* BACK OF THE ID CARD */}
-                              <div className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-800 shadow-md overflow-hidden flex flex-col justify-between p-3 relative">
-                                <div className="text-center border-b border-white/10 pb-2">
+                              <div className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between p-2.5 relative">
+                                <div className="text-center border-b border-white/10 pb-1">
                                   <img 
                                     src="/logo.png" 
                                     alt="SK Sungai Bayan" 
-                                    className="w-8 h-8 object-contain mx-auto mb-1 bg-white/10 p-0.5 rounded"
+                                    className="w-6 h-6 object-contain mx-auto mb-0.5 bg-white/10 p-0.5 rounded"
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                   />
-                                  <h3 className="font-black text-xs text-amber-400 tracking-wider">SK SUNGAI BAYAN</h3>
-                                  <p className="text-[8px] text-slate-300">PANDUAN & SYARAT PENGGUNAAN KAD</p>
+                                  <h3 className="font-black text-[10px] text-amber-400 tracking-wider">SK SUNGAI BAYAN</h3>
+                                  <p className="text-[7px] text-slate-300">PANDUAN & SYARAT PENGGUNAAN KAD</p>
                                 </div>
 
-                                <div className="text-[8px] text-slate-300 space-y-1 my-auto px-1">
+                                <div className="text-[7.5px] text-slate-300 space-y-0.5 my-auto px-1 leading-snug">
                                   <p>• Kad ini adalah hak milik rasmi <strong>SK Sungai Bayan</strong>.</p>
                                   <p>• Kad ini terpakai sepanjang tempoh persekolahan murid (Tahun 1 hingga Tahun 6).</p>
                                   <p>• Wajib dibawa setiap hari untuk tujuan imbasan e-Hadir di pintu pagar sekolah.</p>
                                   <p>• Jika ditemui, sila serahkan kepada pihak pentadbiran sekolah.</p>
                                 </div>
 
-                                <div className="border-t border-white/10 pt-2 flex items-center justify-between text-[8px]">
+                                <div className="border-t border-white/10 pt-1 flex items-center justify-between text-[7px]">
                                   <div>
                                     <p className="text-slate-400">Tandatangan Pentadbir:</p>
-                                    <div className="h-6 border-b border-dashed border-slate-500 w-24 my-0.5"></div>
+                                    <div className="h-4 border-b border-dashed border-slate-500 w-20 my-0.5"></div>
                                     <p className="font-bold text-amber-300">SK SUNGAI BAYAN</p>
                                   </div>
 
                                   <div className="text-right">
-                                    <span className="inline-block bg-amber-400 text-slate-950 px-2 py-0.5 rounded font-black text-[7px] uppercase">
+                                    <span className="inline-block bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black text-[6.5px] uppercase">
                                       Muka Belakang
                                     </span>
                                   </div>
