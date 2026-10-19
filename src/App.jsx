@@ -3,7 +3,7 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Filter
+  Maximize2, Minimize2, RotateCcw, Clock, Download
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -125,6 +125,7 @@ export default function App() {
   const [deduplicatePrint, setDeduplicatePrint] = useState(true);
   const [certFilterClass, setCertFilterClass] = useState('Semua');
   const [printSubTab, setPrintSubTab] = useState('cards');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [fullscreenScreenView, setFullscreenScreenView] = useState(0);
@@ -137,17 +138,14 @@ export default function App() {
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
 
-  // Strictly Active Students for Daily Attendance, Directory, and Dashboard
   const activeStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || s.status.toLowerCase() === 'aktif'
   );
 
-  // Incoming Students
   const incomingStudents = students.filter(
     s => s.status.toLowerCase() === 'incoming'
   );
 
-  // All printable students (Active + Incoming)
   const printableStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || 
          s.status.toLowerCase() === 'aktif' || 
@@ -495,7 +493,6 @@ export default function App() {
     }, 5000);
   };
 
-  // Printing Filter & Deduplication Handler
   const getFilteredPrintStudents = () => {
     let rawList = printableStudents;
 
@@ -529,6 +526,52 @@ export default function App() {
   };
 
   const printFilteredStudents = getFilteredPrintStudents();
+
+  // Helper to chunk students into 4 items per page for perfect A4 rendering
+  const chunkArray = (array, chunkSize) => {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+  };
+
+  const studentChunks = chunkArray(printFilteredStudents, 4);
+
+  // PDF Download Handler using html2pdf.js
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    
+    const loadHtml2Pdf = () => new Promise((resolve, reject) => {
+      if (window.html2pdf) return resolve(window.html2pdf);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve(window.html2pdf);
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+
+    try {
+      const html2pdf = await loadHtml2Pdf();
+      const element = document.getElementById('printable-pdf-area');
+
+      const opt = {
+        margin:       [8, 8, 8, 8],
+        filename:     `Kad_ID_SKSB_${printClassFilter}_${new Date().toISOString().split('T')[0]}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('PDF Generation failed:', err);
+      alert('Gagal memuat turun PDF. Sila cuba lagi.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const getUniqueAttendanceForDate = (date) => {
     const rawList = attendance.filter(a => a.date === date);
@@ -747,16 +790,33 @@ export default function App() {
             width: 100% !important; 
           }
 
+          .pdf-page {
+            page-break-before: always !important;
+            page-break-after: always !important;
+            break-before: page !important;
+            break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            height: 275mm !important;
+            max-height: 275mm !important;
+            box-sizing: border-box !important;
+            padding-top: 2mm !important;
+          }
+
+          .pdf-page:first-child {
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+          }
+
           .card-wrapper { 
             page-break-inside: avoid !important; 
             break-inside: avoid !important; 
-            -webkit-column-break-inside: avoid !important;
-            margin-bottom: 8px !important; 
+            margin-bottom: 6mm !important; 
             display: grid !important; 
             grid-template-columns: repeat(2, 1fr) !important; 
-            gap: 10px !important; 
-            height: 180px !important;
-            max-height: 180px !important;
+            gap: 6mm !important; 
+            height: 60mm !important;
+            max-height: 60mm !important;
             overflow: hidden !important;
             box-sizing: border-box !important;
           }
@@ -766,7 +826,7 @@ export default function App() {
             break-inside: avoid !important; 
             border: 2px solid #0f172a !important; 
             box-shadow: none !important; 
-            height: 180px !important; 
+            height: 60mm !important; 
             box-sizing: border-box !important; 
           }
         }
@@ -1532,6 +1592,15 @@ export default function App() {
                           </select>
 
                           <button 
+                            onClick={handleDownloadPdf}
+                            disabled={isGeneratingPdf}
+                            className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-500 disabled:bg-amber-300 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-md"
+                          >
+                            <Download className={`w-3.5 h-3.5 ${isGeneratingPdf ? 'animate-bounce' : ''}`} />
+                            <span>{isGeneratingPdf ? 'Penjana PDF...' : 'Muat Turun PDF'}</span>
+                          </button>
+
+                          <button 
                             onClick={() => window.print()} 
                             className="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-md"
                           >
@@ -1541,118 +1610,122 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="print-area space-y-4">
-                        {printFilteredStudents.map(s => {
-                          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
-                          
-                          return (
-                            <div key={s.id} className="card-wrapper my-4">
-                              {/* FRONT OF THE ID CARD */}
-                              <div className="id-card bg-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between relative">
-                                <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-1.5 flex items-center justify-between border-b-2 border-amber-400">
-                                  <div className="flex items-center space-x-2">
-                                    <img 
-                                      src="/logo.png" 
-                                      alt="SK Sungai Bayan" 
-                                      className="w-5 h-5 object-contain bg-white/10 rounded p-0.5"
-                                      onError={(e) => { e.target.style.display = 'none'; }}
-                                    />
-                                    <div>
-                                      <h3 className="font-extrabold text-[10px] tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
-                                      <p className="text-[7px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
+                      <div id="printable-pdf-area" className="print-area">
+                        {studentChunks.map((chunk, chunkIndex) => (
+                          <div key={`page-${chunkIndex}`} className="pdf-page">
+                            {chunk.map(s => {
+                              const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(s.id)}`;
+                              
+                              return (
+                                <div key={s.id} className="card-wrapper">
+                                  {/* FRONT OF THE ID CARD */}
+                                  <div className="id-card bg-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between relative">
+                                    <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-1.5 flex items-center justify-between border-b-2 border-amber-400">
+                                      <div className="flex items-center space-x-2">
+                                        <img 
+                                          src="/logo.png" 
+                                          alt="SK Sungai Bayan" 
+                                          className="w-5 h-5 object-contain bg-white/10 rounded p-0.5"
+                                          onError={(e) => { e.target.style.display = 'none'; }}
+                                        />
+                                        <div>
+                                          <h3 className="font-extrabold text-[10px] tracking-wider leading-tight text-amber-300">SK SUNGAI BAYAN</h3>
+                                          <p className="text-[7px] text-slate-300 tracking-tight">KAD MATRIK & KEHADIRAN MURID</p>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div className="p-2.5 flex items-center justify-between gap-2 bg-slate-50/50 flex-1 overflow-hidden">
+                                      <div className="space-y-1 flex-1 min-w-0 pr-1">
+                                        <div>
+                                          <p className="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
+                                          <h4 
+                                            className={`font-black text-slate-900 leading-tight uppercase break-words ${
+                                              s.name.length > 30 
+                                                ? 'text-[9px]' 
+                                                : s.name.length > 22 
+                                                  ? 'text-[10px]' 
+                                                  : 'text-[11px]'
+                                            }`}
+                                            style={{
+                                              display: '-webkit-box',
+                                              WebkitLineClamp: 2,
+                                              WebkitBoxOrient: 'vertical',
+                                              overflow: 'hidden'
+                                            }}
+                                          >
+                                            {s.name}
+                                          </h4>
+                                        </div>
+
+                                        <div className="flex items-center gap-1">
+                                          <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
+                                            NO ID: {s.id}
+                                          </span>
+                                        </div>
+
+                                        <div className="pt-0.5 text-[7px] text-slate-600 border-t border-slate-200">
+                                          <p style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+                                            <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="bg-white p-1 rounded border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
+                                        <img 
+                                          src={qrUrl} 
+                                          alt={`QR ${s.id}`} 
+                                          className="w-14 h-14 object-contain rounded"
+                                        />
+                                        <p className="text-[7px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
+                                      </div>
+                                    </div>
+
+                                    <div className="bg-slate-900 px-2.5 py-0.5 flex items-center justify-between text-[7px] text-slate-400">
+                                      <span>Kad ID Rasmi SK Sungai Bayan</span>
+                                      <span className="font-mono text-amber-400">MUKA DEPAN</span>
+                                    </div>
+                                  </div>
+
+                                  {/* BACK OF THE ID CARD */}
+                                  <div className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between p-2.5 relative">
+                                    <div className="text-center border-b border-white/10 pb-1">
+                                      <img 
+                                        src="/logo.png" 
+                                        alt="SK Sungai Bayan" 
+                                        className="w-6 h-6 object-contain mx-auto mb-0.5 bg-white/10 p-0.5 rounded"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                      />
+                                      <h3 className="font-black text-[10px] text-amber-400 tracking-wider">SK SUNGAI BAYAN</h3>
+                                      <p className="text-[7px] text-slate-300">PANDUAN & SYARAT PENGGUNAAN KAD</p>
+                                    </div>
+
+                                    <div className="text-[7.5px] text-slate-300 space-y-0.5 my-auto px-1 leading-snug">
+                                      <p>• Kad ini adalah hak milik rasmi <strong>SK Sungai Bayan</strong>.</p>
+                                      <p>• Kad ini terpakai sepanjang tempoh persekolahan murid (Tahun 1 hingga Tahun 6).</p>
+                                      <p>• Wajib dibawa setiap hari untuk tujuan imbasan e-Hadir di pintu pagar sekolah.</p>
+                                      <p>• Jika ditemui, sila serahkan kepada pihak pentadbiran sekolah.</p>
+                                    </div>
+
+                                    <div className="border-t border-white/10 pt-1 flex items-center justify-between text-[7px]">
+                                      <div>
+                                        <p className="text-slate-400">Tandatangan Pentadbir:</p>
+                                        <div className="h-4 border-b border-dashed border-slate-500 w-20 my-0.5"></div>
+                                        <p className="font-bold text-amber-300">SK SUNGAI BAYAN</p>
+                                      </div>
+
+                                      <div className="text-right">
+                                        <span className="inline-block bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black text-[6.5px] uppercase">
+                                          Muka Belakang
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-
-                                <div className="p-2.5 flex items-center justify-between gap-2 bg-slate-50/50 flex-1 overflow-hidden">
-                                  <div className="space-y-1 flex-1 min-w-0 pr-1">
-                                    <div>
-                                      <p className="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Nama Murid</p>
-                                      <h4 
-                                        className={`font-black text-slate-900 leading-tight uppercase break-words ${
-                                          s.name.length > 30 
-                                            ? 'text-[9px]' 
-                                            : s.name.length > 22 
-                                              ? 'text-[10px]' 
-                                              : 'text-[11px]'
-                                        }`}
-                                        style={{
-                                          display: '-webkit-box',
-                                          WebkitLineClamp: 2,
-                                          WebkitBoxOrient: 'vertical',
-                                          overflow: 'hidden'
-                                        }}
-                                      >
-                                        {s.name}
-                                      </h4>
-                                    </div>
-
-                                    <div className="flex items-center gap-1">
-                                      <span className="bg-blue-100 text-blue-900 text-[8px] font-black px-1.5 py-0.5 rounded border border-blue-300">
-                                        NO ID: {s.id}
-                                      </span>
-                                    </div>
-
-                                    <div className="pt-0.5 text-[7px] text-slate-600 border-t border-slate-200">
-                                      <p style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-                                        <span className="font-bold text-slate-800">Emel DELIMA:</span> {s.guardian}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  <div className="bg-white p-1 rounded border-2 border-slate-300 shadow-sm text-center flex flex-col items-center justify-center flex-shrink-0">
-                                    <img 
-                                      src={qrUrl} 
-                                      alt={`QR ${s.id}`} 
-                                      className="w-14 h-14 object-contain rounded"
-                                    />
-                                    <p className="text-[7px] font-mono font-bold text-slate-500 mt-0.5">{s.id}</p>
-                                  </div>
-                                </div>
-
-                                <div className="bg-slate-900 px-2.5 py-0.5 flex items-center justify-between text-[7px] text-slate-400">
-                                  <span>Kad ID Rasmi SK Sungai Bayan</span>
-                                  <span className="font-mono text-amber-400">MUKA DEPAN</span>
-                                </div>
-                              </div>
-
-                              {/* BACK OF THE ID CARD */}
-                              <div className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between p-2.5 relative">
-                                <div className="text-center border-b border-white/10 pb-1">
-                                  <img 
-                                    src="/logo.png" 
-                                    alt="SK Sungai Bayan" 
-                                    className="w-6 h-6 object-contain mx-auto mb-0.5 bg-white/10 p-0.5 rounded"
-                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                  />
-                                  <h3 className="font-black text-[10px] text-amber-400 tracking-wider">SK SUNGAI BAYAN</h3>
-                                  <p className="text-[7px] text-slate-300">PANDUAN & SYARAT PENGGUNAAN KAD</p>
-                                </div>
-
-                                <div className="text-[7.5px] text-slate-300 space-y-0.5 my-auto px-1 leading-snug">
-                                  <p>• Kad ini adalah hak milik rasmi <strong>SK Sungai Bayan</strong>.</p>
-                                  <p>• Kad ini terpakai sepanjang tempoh persekolahan murid (Tahun 1 hingga Tahun 6).</p>
-                                  <p>• Wajib dibawa setiap hari untuk tujuan imbasan e-Hadir di pintu pagar sekolah.</p>
-                                  <p>• Jika ditemui, sila serahkan kepada pihak pentadbiran sekolah.</p>
-                                </div>
-
-                                <div className="border-t border-white/10 pt-1 flex items-center justify-between text-[7px]">
-                                  <div>
-                                    <p className="text-slate-400">Tandatangan Pentadbir:</p>
-                                    <div className="h-4 border-b border-dashed border-slate-500 w-20 my-0.5"></div>
-                                    <p className="font-bold text-amber-300">SK SUNGAI BAYAN</p>
-                                  </div>
-
-                                  <div className="text-right">
-                                    <span className="inline-block bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded font-black text-[6.5px] uppercase">
-                                      Muka Belakang
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
