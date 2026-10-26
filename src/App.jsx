@@ -3,13 +3,14 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Download, FileText, Plus, Trash2, Eye, History
+  Maximize2, Minimize2, RotateCcw, Clock, Download, FileText, Plus, Trash2, Eye, History, Minus
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
 const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbyM_nTKRqH36YZCv0qKxRA8EPWB1_rdUk2jn2mEgCoY8p8AJDlQc8L7v8N8XU2CrYXi/exec"; 
 const DEFAULT_OPR_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKo-4VcOm_RzJxqe6YhGuMvrHf7H8rpsYdTZZdwf16yALXY1MMNaHVq7ZW05sSG_beOug2P8NT0Ta6/pub?gid=0&single=true&output=csv";
+const OPR_API_URL = "https://script.google.com/macros/s/AKfycbz4_eMwCM5K45eBtzqswYho9d-rHTsyBs1uNZ8gDVyynO19ErXnvnkRxY4G0rP8AfGa/exec"; 
 
 const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', qr_token: 'SB20260001' },
@@ -21,32 +22,20 @@ const INITIAL_STUDENTS = [
 
 const INITIAL_ATTENDANCE = [];
 
+// Clean & empty initial form state as requested
 const INITIAL_OPR_FORM = {
-  programName: 'PERKONGSIAN PENATARAN BAHASA INGGERIS TAHUN 1 DK27',
-  programDate: '2026-10-20',
-  startTime: '02:30 Petang',
-  endTime: '04:00 Petang',
-  location: 'BILIK GURU SK SUNGAI BAYAN',
-  coordinator: 'BENEDICT TILLAI MAURICE',
-  objectives: [
-    'Membawa pendedahan dan pemahaman kepada guru tentang kandungan, struktur serta perubahan dalam Dokumen Pelajaran Bahasa Inggeris Tahun 1 bagi tahun 2027.',
-    'Meningkatkan pengetahuan dan kefahaman guru tentang pelaksanaan kurikulum Bahasa Inggeris Tahun 1 agar selaras dengan ketetapan dan panduan yang ditetapkan oleh Kementerian Pendidikan Malaysia.',
-    'Membimbing guru merancang pengajaran dan pembelajaran yang berkesan, bersesuaian dengan tahap penguasaan murid serta keperluan kurikulum baharu.'
-  ],
-  activities: [
-    'Program dilaksanakan melalui sesi perkongsian dan penataran yang memfokuskan penerangan tentang Dokumen Pelajaran Bahasa Inggeris Tahun 1 bagi tahun 2027, termasuk struktur dokumen, kandungan kurikulum, standard pembelajaran serta implikasi terhadap perancangan dan pelaksanaan pengajaran dan pembelajaran di bilik darjah. Sesi turut memberi ruang kepada guru untuk berbincang, mengemukakan pertanyaan dan berkongsi pandangan bagi memastikan kefahaman yang lebih jelas tentang pelaksanaan kurikulum tersebut.'
-  ],
-  summary: [
-    'Secara keseluruhannya, program ini diharapkan dapat meningkatkan kefahaman dan kesediaan guru dalam melaksanakan kurikulum Bahasa Inggeris Tahun 1 bagi tahun 2027. Perkongsian ini juga menjadi platform untuk menyelaraskan pemahaman guru serta memperkukuh perancangan pengajaran dan pembelajaran yang lebih sistematik, berkesan dan berpusatkan murid. Keberkesanan program boleh dinilai melalui maklum balas peserta, tahap kefahaman guru dan kesediaan mereka menyediakan perancangan pengajaran berdasarkan dokumen yang telah ditatar.'
-  ],
-  images: [
-    'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=600&auto=format&fit=crop&q=60',
-    'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=60'
-  ],
-  reporterName: 'BENEDICT TILLAI MAURICE',
-  reporterDesignation: 'GAB\nSK Sungai Bayan'
+  programName: '',
+  programDate: '',
+  startTime: '08:00 Pagi',
+  endTime: '12:00 Tengah Hari',
+  location: '',
+  coordinator: '',
+  objectives: [''],
+  activities: [''],
+  summary: [''],
+  images: ['', '', '', ''],
+  reporterName: '',
+  reporterDesignation: ''
 };
 
 const formatDateDMY = (dateStr) => {
@@ -135,6 +124,10 @@ export default function App() {
     return localStorage.getItem('sksb_opr_sheet_url') || DEFAULT_OPR_SHEET_URL;
   });
 
+  const [oprApiUrl, setOprApiUrl] = useState(() => {
+    return localStorage.getItem('sksb_opr_api_url') || OPR_API_URL;
+  });
+
   const [students, setStudents] = useState(() => {
     try {
       const saved = localStorage.getItem('sksb_students');
@@ -159,6 +152,7 @@ export default function App() {
   const [oprArchiveList, setOprArchiveList] = useState([]);
   const [isGeneratingOprPdf, setIsGeneratingOprPdf] = useState(false);
   const [oprArchiveSearch, setOprArchiveSearch] = useState('');
+  const [oprSaveMessage, setOprSaveMessage] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -695,9 +689,25 @@ export default function App() {
     }
   };
 
-  // Download OPR Single-Page A4 PDF
+  // Download OPR Single-Page A4 PDF & Save to Google Sheets API
   const handleDownloadOprPdf = async () => {
     setIsGeneratingOprPdf(true);
+    setOprSaveMessage('Sedang menyimpan dan menjana PDF OPR...');
+
+    // Post data to Google Apps Script OPR API if configured
+    if (oprApiUrl && oprApiUrl.startsWith('https://script.google.com')) {
+      try {
+        await fetch(oprApiUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(oprForm)
+        });
+        setOprSaveMessage('Rekod OPR berjaya dihantar ke Google Sheets!');
+      } catch (err) {
+        console.error('OPR API Sync Error:', err);
+      }
+    }
 
     const loadHtml2Pdf = () => new Promise((resolve, reject) => {
       if (window.html2pdf) return resolve(window.html2pdf);
@@ -714,7 +724,7 @@ export default function App() {
 
       const opt = {
         margin:       0,
-        filename:     `OPR_${oprForm.programName.replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate}.pdf`,
+        filename:     `OPR_${(oprForm.programName || 'Aktiviti').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -726,21 +736,22 @@ export default function App() {
       alert('Ralat semasa menjana PDF OPR.');
     } finally {
       setIsGeneratingOprPdf(false);
+      setTimeout(() => setOprSaveMessage(''), 4000);
     }
   };
 
   const loadOprFromArchive = (archiveItem) => {
     setOprForm({
       programName: archiveItem.programName,
-      programDate: archiveItem.programDate || '2026-10-20',
-      startTime: archiveItem.time.split('-')[0]?.trim() || '02:30 Petang',
-      endTime: archiveItem.time.split('-')[1]?.trim() || '04:00 Petang',
+      programDate: archiveItem.programDate || '',
+      startTime: archiveItem.time.split('-')[0]?.trim() || '08:00 Pagi',
+      endTime: archiveItem.time.split('-')[1]?.trim() || '12:00 Tengah Hari',
       location: archiveItem.location,
       coordinator: archiveItem.coordinator,
       objectives: [archiveItem.objective1, archiveItem.objective2, archiveItem.objective3].filter(Boolean),
-      activities: archiveItem.activities ? [archiveItem.activities] : [''],
-      summary: archiveItem.summary ? [archiveItem.summary] : [''],
-      images: INITIAL_OPR_FORM.images,
+      activities: archiveItem.activities ? archiveItem.activities.split('\n') : [''],
+      summary: archiveItem.summary ? archiveItem.summary.split('\n') : [''],
+      images: ['', '', '', ''],
       reporterName: archiveItem.reporterName,
       reporterDesignation: archiveItem.reporterDesignation
     });
@@ -1272,7 +1283,10 @@ export default function App() {
 
                     <div className="flex items-center space-x-2">
                       <button 
-                        onClick={() => setOprTab('builder')}
+                        onClick={() => {
+                          setOprForm(INITIAL_OPR_FORM);
+                          setOprTab('builder');
+                        }}
                         className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${oprTab === 'builder' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -1288,11 +1302,18 @@ export default function App() {
                     </div>
                   </div>
 
+                  {oprSaveMessage && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 shadow-sm no-print">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>{oprSaveMessage}</span>
+                    </div>
+                  )}
+
                   {oprTab === 'builder' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                       {/* LEFT: FORM BUILDER */}
-                      <div className="lg:col-span-6 bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto no-print shadow-xl">
-                        <h3 className="text-sm font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2">
+                      <div className="lg:col-span-6 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-4 no-print shadow-xl">
+                        <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2">
                           I. MAKLUMAT UMUM PROGRAM
                         </h3>
 
@@ -1303,8 +1324,8 @@ export default function App() {
                               type="text" 
                               value={oprForm.programName}
                               onChange={e => setOprForm({ ...oprForm, programName: e.target.value })}
-                              placeholder="Contoh: Perkongsian Penataran Bahasa Inggeris"
-                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
+                              placeholder="Contoh: Kejohanan Sukan Tahunan SKSB"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
                             />
                           </div>
 
@@ -1315,7 +1336,7 @@ export default function App() {
                                 type="date" 
                                 value={oprForm.programDate}
                                 onChange={e => setOprForm({ ...oprForm, programDate: e.target.value })}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none cursor-pointer"
                               />
                             </div>
                             <div>
@@ -1323,7 +1344,7 @@ export default function App() {
                               <select 
                                 value={oprForm.startTime}
                                 onChange={e => setOprForm({ ...oprForm, startTime: e.target.value })}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none cursor-pointer"
                               >
                                 {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
@@ -1333,7 +1354,7 @@ export default function App() {
                               <select 
                                 value={oprForm.endTime}
                                 onChange={e => setOprForm({ ...oprForm, endTime: e.target.value })}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none cursor-pointer"
                               >
                                 {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
@@ -1347,8 +1368,8 @@ export default function App() {
                                 type="text" 
                                 value={oprForm.location}
                                 onChange={e => setOprForm({ ...oprForm, location: e.target.value })}
-                                placeholder="Contoh: Bilik Guru SK Sungai Bayan"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
+                                placeholder="Contoh: Dewan Seri Bayan"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
                               />
                             </div>
                             <div>
@@ -1357,8 +1378,8 @@ export default function App() {
                                 type="text" 
                                 value={oprForm.coordinator}
                                 onChange={e => setOprForm({ ...oprForm, coordinator: e.target.value })}
-                                placeholder="Contoh: BENEDICT TILLAI MAURICE"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
+                                placeholder="Nama penyelaras utama"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
                               />
                             </div>
                           </div>
@@ -1379,22 +1400,24 @@ export default function App() {
 
                           <div className="space-y-2">
                             {oprForm.objectives.map((obj, idx) => (
-                              <div key={idx} className="flex gap-2 items-start">
-                                <span className="text-xs font-bold text-slate-500 pt-2">{idx + 1}.</span>
-                                <textarea 
-                                  rows="2"
+                              <div key={idx} className="flex gap-1.5 items-center">
+                                <span className="text-xs font-bold text-slate-500 w-4">{idx + 1}.</span>
+                                <input 
+                                  type="text"
                                   value={obj}
                                   onChange={e => handleOprArrayChange('objectives', idx, e.target.value)}
-                                  placeholder={`Objektif Poin ${idx + 1}`}
-                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
+                                  placeholder={`Objektif ${idx + 1}`}
+                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-blue-500"
                                 />
                                 {oprForm.objectives.length > 1 && (
                                   <button 
                                     type="button" 
                                     onClick={() => removeOprArrayItem('objectives', idx)}
-                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded mt-1"
+                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px]"
+                                    title="Padam Poin Ini"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Minus className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Padam</span>
                                   </button>
                                 )}
                               </div>
@@ -1417,22 +1440,24 @@ export default function App() {
 
                           <div className="space-y-2">
                             {oprForm.activities.map((act, idx) => (
-                              <div key={idx} className="flex gap-2 items-start">
-                                <span className="text-xs font-bold text-slate-500 pt-2">•</span>
+                              <div key={idx} className="flex gap-1.5 items-start">
+                                <span className="text-xs font-bold text-slate-500 pt-1 w-4">•</span>
                                 <textarea 
-                                  rows="3"
+                                  rows="2"
                                   value={act}
                                   onChange={e => handleOprArrayChange('activities', idx, e.target.value)}
-                                  placeholder={`Kandungan ringkasan aktiviti utama ${idx + 1}`}
+                                  placeholder={`Pengisian aktiviti utama ${idx + 1}`}
                                   className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
                                 />
                                 {oprForm.activities.length > 1 && (
                                   <button 
                                     type="button" 
                                     onClick={() => removeOprArrayItem('activities', idx)}
-                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded mt-1"
+                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px] mt-1"
+                                    title="Padam Poin Ini"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Minus className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Padam</span>
                                   </button>
                                 )}
                               </div>
@@ -1455,22 +1480,24 @@ export default function App() {
 
                           <div className="space-y-2">
                             {oprForm.summary.map((sum, idx) => (
-                              <div key={idx} className="flex gap-2 items-start">
-                                <span className="text-xs font-bold text-slate-500 pt-2">•</span>
+                              <div key={idx} className="flex gap-1.5 items-start">
+                                <span className="text-xs font-bold text-slate-500 pt-1 w-4">•</span>
                                 <textarea 
-                                  rows="3"
+                                  rows="2"
                                   value={sum}
                                   onChange={e => handleOprArrayChange('summary', idx, e.target.value)}
-                                  placeholder={`Kandungan rumusan program ${idx + 1}`}
+                                  placeholder={`Rumusan / impak ${idx + 1}`}
                                   className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
                                 />
                                 {oprForm.summary.length > 1 && (
                                   <button 
                                     type="button" 
                                     onClick={() => removeOprArrayItem('summary', idx)}
-                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded mt-1"
+                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px] mt-1"
+                                    title="Padam Poin Ini"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Minus className="w-3.5 h-3.5" />
+                                    <span className="hidden sm:inline">Padam</span>
                                   </button>
                                 )}
                               </div>
@@ -1481,12 +1508,29 @@ export default function App() {
                         {/* LAMPIRAN GAMBAR */}
                         <div className="pt-2">
                           <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-1 mb-2">
-                            V. LAMPIRAN FOTO PROGRAM (2 HINGGA 4 FOTO)
+                            V. LAMPIRAN GAMBAR PROGRAM (2 - 4 FOTO)
                           </h3>
                           <div className="grid grid-cols-2 gap-2">
                             {[0, 1, 2, 3].map(imgIdx => (
                               <div key={imgIdx} className="bg-slate-950 p-2 rounded-lg border border-slate-800 space-y-1">
-                                <label className="block text-[10px] font-bold text-slate-400">Gambar {imgIdx + 1}</label>
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-[10px] font-bold text-slate-400">Gambar {imgIdx + 1}</label>
+                                  {oprForm.images[imgIdx] && (
+                                    <button 
+                                      type="button" 
+                                      onClick={() => {
+                                        setOprForm(prev => {
+                                          const imgs = [...prev.images];
+                                          imgs[imgIdx] = '';
+                                          return { ...prev, images: imgs };
+                                        });
+                                      }}
+                                      className="text-[9px] text-red-400 hover:underline"
+                                    >
+                                      Kosongkan
+                                    </button>
+                                  )}
+                                </div>
                                 <input 
                                   type="file" 
                                   accept="image/*"
@@ -1510,8 +1554,8 @@ export default function App() {
                                 type="text" 
                                 value={oprForm.reporterName}
                                 onChange={e => setOprForm({ ...oprForm, reporterName: e.target.value })}
-                                placeholder="BENEDICT TILLAI MAURICE"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
+                                placeholder="Contoh: Encik Khairul Azwan"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
                               />
                             </div>
                             <div>
@@ -1520,8 +1564,8 @@ export default function App() {
                                 type="text" 
                                 value={oprForm.reporterDesignation}
                                 onChange={e => setOprForm({ ...oprForm, reporterDesignation: e.target.value })}
-                                placeholder="GAB SK Sungai Bayan"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
+                                placeholder="Contoh: Setiausaha Sukan"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
                               />
                             </div>
                           </div>
@@ -1537,138 +1581,143 @@ export default function App() {
                         </button>
                       </div>
 
-                      {/* RIGHT: LIVE A4 PREVIEW */}
-                      <div className="lg:col-span-6 flex flex-col items-center justify-start">
-                        <div className="mb-2 text-center no-print">
+                      {/* RIGHT: LIVE A4 PREVIEW (COMPACT & PROPORTIONAL) */}
+                      <div className="lg:col-span-6 flex flex-col items-center justify-start no-print">
+                        <div className="mb-2 text-center">
                           <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
-                            Pratinjau Langsung A4 Format OPR
+                            Pratinjau Langsung Format OPR A4
                           </span>
                         </div>
 
-                        <div 
-                          id="opr-preview-a4"
-                          className="w-[210mm] min-h-[297mm] bg-white text-slate-900 shadow-2xl p-8 relative flex flex-col justify-between border border-slate-200 text-xs overflow-hidden leading-tight font-sans"
-                          style={{ boxSizing: 'border-box' }}
-                        >
-                          {/* Aesthetic Top Right Geometric Graphics */}
-                          <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none opacity-20">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600 rounded-bl-full"></div>
-                            <div className="absolute top-12 right-12 w-24 h-24 bg-amber-400 rounded-bl-full"></div>
-                          </div>
-
-                          <div>
-                            {/* SCHOOL HEADER */}
-                            <div className="flex items-center space-x-4 border-b-2 border-slate-800 pb-3 mb-3 relative z-10">
-                              <img 
-                                src="/logo.png" 
-                                alt="Logo SK Sungai Bayan" 
-                                className="w-14 h-14 object-contain"
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                              />
-                              <div>
-                                <h1 className="text-xl font-black text-slate-900 tracking-wider">SK SUNGAI BAYAN</h1>
-                                <h2 className="text-sm font-black text-blue-700 tracking-wide">ONE PAGE REPORT (OPR)</h2>
-                                <p className="text-[10px] text-slate-500 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
-                              </div>
-                            </div>
-
-                            {/* MAKLUMAT TABLE */}
-                            <table className="w-full border-collapse border border-slate-800 text-[11px] mb-3">
-                              <tbody>
-                                <tr className="border-b border-slate-800">
-                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 w-36 uppercase text-slate-800">NAMA PROGRAM:</td>
-                                  <td className="px-2.5 py-1.5 font-bold uppercase text-slate-900">{oprForm.programName}</td>
-                                </tr>
-                                <tr className="border-b border-slate-800">
-                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">TARIKH PROGRAM:</td>
-                                  <td className="px-2.5 py-1.5 font-medium">{formatDateDMY(oprForm.programDate)}</td>
-                                </tr>
-                                <tr className="border-b border-slate-800">
-                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">MASA PROGRAM:</td>
-                                  <td className="px-2.5 py-1.5 font-medium">{oprForm.startTime} - {oprForm.endTime}</td>
-                                </tr>
-                                <tr className="border-b border-slate-800">
-                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">TEMPAT / LOKASI:</td>
-                                  <td className="px-2.5 py-1.5 font-bold uppercase">{oprForm.location}</td>
-                                </tr>
-                                <tr>
-                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">PENYELARAS PROGRAM:</td>
-                                  <td className="px-2.5 py-1.5 font-bold uppercase text-blue-900">{oprForm.coordinator}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-
-                            {/* SECTION I: OBJEKTIF */}
-                            <div className="mb-3">
-                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[11px] uppercase">
-                                I. OBJEKTIF PROGRAM
-                              </h3>
-                              <ol className="list-decimal list-inside text-[10.5px] text-slate-800 space-y-1 text-justify pl-1">
-                                {oprForm.objectives.filter(Boolean).map((obj, i) => (
-                                  <li key={i} className="leading-tight"><span className="font-semibold">{obj}</span></li>
-                                ))}
-                              </ol>
-                            </div>
-
-                            {/* SECTION II: RINGKASAN AKTIVITI */}
-                            <div className="mb-3">
-                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[11px] uppercase">
-                                II. RINGKASAN AKTIVITI UTAMA
-                              </h3>
-                              <ul className="list-disc list-inside text-[10.5px] text-slate-800 space-y-1 text-justify pl-1">
-                                {oprForm.activities.filter(Boolean).map((act, i) => (
-                                  <li key={i} className="leading-tight">{act}</li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            {/* SECTION III: RUMUSAN */}
-                            <div className="mb-3">
-                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[11px] uppercase">
-                                III. RUMUSAN PROGRAM
-                              </h3>
-                              <ul className="list-disc list-inside text-[10.5px] text-slate-800 space-y-1 text-justify pl-1">
-                                {oprForm.summary.filter(Boolean).map((sum, i) => (
-                                  <li key={i} className="leading-tight">{sum}</li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            {/* SECTION IV: LAMPIRAN GAMBAR */}
-                            <div className="mb-3">
-                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1.5 text-[11px] uppercase">
-                                IV. LAMPIRAN FOTOGRAFI PROGRAM
-                              </h3>
-                              <div className="grid grid-cols-2 gap-2 border border-slate-800 p-1.5 bg-slate-50 rounded">
-                                {oprForm.images.slice(0, 4).map((imgUrl, i) => (
-                                  <div key={i} className="h-28 bg-slate-200 border border-slate-400 overflow-hidden rounded flex items-center justify-center">
-                                    {imgUrl ? (
-                                      <img src={imgUrl} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <span className="text-[9px] font-bold text-slate-400 uppercase">Foto {i + 1}</span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* SECTION V: PENYEDIA */}
-                          <div className="pt-2 border-t border-slate-200 flex items-end justify-between relative z-10">
+                        {/* Outer Container with Scaled Printable Sheet */}
+                        <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-6 rounded-lg border border-slate-300 relative flex flex-col justify-between aspect-[1/1.414] overflow-hidden text-[10px] leading-tight font-sans">
+                          
+                          {/* Printable Wrapper targeting PDF generator */}
+                          <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white">
                             <div>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase">Disediakan Oleh:</p>
-                              <div className="h-8 border-b border-dashed border-slate-400 w-48 my-1"></div>
-                              <p className="font-black text-slate-900 uppercase text-[11px]">{oprForm.reporterName}</p>
-                              <p className="text-[10px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation}</p>
+                              {/* SCHOOL HEADER */}
+                              <div className="flex items-center space-x-3 border-b-2 border-slate-800 pb-2 mb-2">
+                                <img 
+                                  src="/logo.png" 
+                                  alt="Logo SK Sungai Bayan" 
+                                  className="w-10 h-10 object-contain"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                                <div>
+                                  <h1 className="text-sm font-black text-slate-900 tracking-wider">SK SUNGAI BAYAN</h1>
+                                  <h2 className="text-xs font-black text-blue-700 tracking-wide">ONE PAGE REPORT (OPR)</h2>
+                                  <p className="text-[8px] text-slate-500 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
+                                </div>
+                              </div>
+
+                              {/* MAKLUMAT TABLE */}
+                              <table className="w-full border-collapse border border-slate-800 text-[9.5px] mb-2">
+                                <tbody>
+                                  <tr className="border-b border-slate-800">
+                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 w-32 uppercase text-slate-800">NAMA PROGRAM:</td>
+                                    <td className="px-2 py-1 font-bold uppercase text-slate-900">{oprForm.programName || '—'}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-800">
+                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">TARIKH PROGRAM:</td>
+                                    <td className="px-2 py-1 font-medium">{formatDateDMY(oprForm.programDate) || '—'}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-800">
+                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">MASA PROGRAM:</td>
+                                    <td className="px-2 py-1 font-medium">{oprForm.startTime} - {oprForm.endTime}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-800">
+                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">TEMPAT / LOKASI:</td>
+                                    <td className="px-2 py-1 font-bold uppercase">{oprForm.location || '—'}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">PENYELARAS PROGRAM:</td>
+                                    <td className="px-2 py-1 font-bold uppercase text-blue-900">{oprForm.coordinator || '—'}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+
+                              {/* SECTION I: OBJEKTIF */}
+                              <div className="mb-2">
+                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
+                                  I. OBJEKTIF PROGRAM
+                                </h3>
+                                <ol className="list-decimal list-inside text-[9.5px] text-slate-800 space-y-0.5 text-justify pl-1">
+                                  {oprForm.objectives.filter(Boolean).length === 0 ? (
+                                    <li className="text-slate-400 italic font-normal">Tiada objektif dimasukkan...</li>
+                                  ) : (
+                                    oprForm.objectives.filter(Boolean).map((obj, i) => (
+                                      <li key={i} className="leading-tight"><span className="font-semibold">{obj}</span></li>
+                                    ))
+                                  )}
+                                </ol>
+                              </div>
+
+                              {/* SECTION II: RINGKASAN AKTIVITI */}
+                              <div className="mb-2">
+                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
+                                  II. RINGKASAN AKTIVITI UTAMA
+                                </h3>
+                                <ul className="list-disc list-inside text-[9.5px] text-slate-800 space-y-0.5 text-justify pl-1">
+                                  {oprForm.activities.filter(Boolean).length === 0 ? (
+                                    <li className="text-slate-400 italic font-normal">Tiada aktiviti dimasukkan...</li>
+                                  ) : (
+                                    oprForm.activities.filter(Boolean).map((act, i) => (
+                                      <li key={i} className="leading-tight">{act}</li>
+                                    ))
+                                  )}
+                                </ul>
+                              </div>
+
+                              {/* SECTION III: RUMUSAN */}
+                              <div className="mb-2">
+                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
+                                  III. RUMUSAN PROGRAM
+                                </h3>
+                                <ul className="list-disc list-inside text-[9.5px] text-slate-800 space-y-0.5 text-justify pl-1">
+                                  {oprForm.summary.filter(Boolean).length === 0 ? (
+                                    <li className="text-slate-400 italic font-normal">Tiada rumusan dimasukkan...</li>
+                                  ) : (
+                                    oprForm.summary.filter(Boolean).map((sum, i) => (
+                                      <li key={i} className="leading-tight">{sum}</li>
+                                    ))
+                                  )}
+                                </ul>
+                              </div>
+
+                              {/* SECTION IV: LAMPIRAN GAMBAR */}
+                              <div className="mb-2">
+                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
+                                  IV. LAMPIRAN FOTOGRAFI PROGRAM
+                                </h3>
+                                <div className="grid grid-cols-2 gap-1.5 border border-slate-800 p-1 bg-slate-50 rounded">
+                                  {oprForm.images.slice(0, 4).map((imgUrl, i) => (
+                                    <div key={i} className="h-20 bg-slate-200 border border-slate-300 overflow-hidden rounded flex items-center justify-center">
+                                      {imgUrl ? (
+                                        <img src={imgUrl} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span className="text-[8px] font-bold text-slate-400 uppercase">Ruangan Foto {i + 1}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
 
-                            <div className="text-right">
-                              <p className="text-[9px] font-mono text-slate-400">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
+                            {/* SECTION V: PENYEDIA */}
+                            <div className="pt-2 border-t border-slate-300 flex items-end justify-between">
+                              <div>
+                                <p className="text-[9px] font-bold text-slate-500 uppercase">Disediakan Oleh:</p>
+                                <div className="h-6 border-b border-dashed border-slate-400 w-40 my-1"></div>
+                                <p className="font-black text-slate-900 uppercase text-[10px]">{oprForm.reporterName || '—'}</p>
+                                <p className="text-[9px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation || '—'}</p>
+                              </div>
+
+                              <div className="text-right">
+                                <p className="text-[8px] font-mono text-slate-400">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Bottom Geometric Design Accent */}
-                          <div className="absolute bottom-0 left-0 w-full h-3 bg-gradient-to-r from-blue-900 via-amber-500 to-blue-900"></div>
                         </div>
                       </div>
                     </div>
@@ -2614,12 +2663,13 @@ export default function App() {
                     </div>
 
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                      <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Arkib OPR)</h3>
+                      <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Arkib & Apps Script OPR)</h3>
                       <p className="text-xs text-slate-600">
-                        Pautan <strong>Publish to Web (CSV)</strong> helaian log OPR (`OFR_Logs_SKSB`).
+                        Pautan <strong>CSV Web</strong> & <strong>Apps Script Web App API</strong> untuk simpan/baca rekod OPR.
                       </p>
                       
                       <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-slate-500">Pautan CSV Arkib Google Sheets</label>
                         <input 
                           type="text" 
                           value={oprSheetUrl}
@@ -2630,12 +2680,25 @@ export default function App() {
                           placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
                           className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                         />
+
+                        <label className="text-[10px] font-bold text-slate-500 mt-1">Pautan Web App Google Apps Script (Auto-Save)</label>
+                        <input 
+                          type="text" 
+                          value={oprApiUrl}
+                          onChange={e => {
+                            setOprApiUrl(e.target.value);
+                            localStorage.setItem('sksb_opr_api_url', e.target.value);
+                          }}
+                          placeholder="https://script.google.com/macros/s/.../exec"
+                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+
                         <button 
                           onClick={() => window.location.reload()}
-                          className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
+                          className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm mt-1"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Kemaskini Pautan Arkib OPR</span>
+                          <span>Simpan & Refresh Tetapan OPR</span>
                         </button>
                       </div>
                     </div>
