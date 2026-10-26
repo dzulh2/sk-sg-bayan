@@ -3,12 +3,13 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Download
+  Maximize2, Minimize2, RotateCcw, Clock, Download, FileText, Plus, Trash2, Eye, History
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
 const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbyM_nTKRqH36YZCv0qKxRA8EPWB1_rdUk2jn2mEgCoY8p8AJDlQc8L7v8N8XU2CrYXi/exec"; 
+const DEFAULT_OPR_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKo-4VcOm_RzJxqe6YhGuMvrHf7H8rpsYdTZZdwf16yALXY1MMNaHVq7ZW05sSG_beOug2P8NT0Ta6/pub?gid=0&single=true&output=csv";
 
 const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', qr_token: 'SB20260001' },
@@ -20,6 +21,34 @@ const INITIAL_STUDENTS = [
 
 const INITIAL_ATTENDANCE = [];
 
+const INITIAL_OPR_FORM = {
+  programName: 'PERKONGSIAN PENATARAN BAHASA INGGERIS TAHUN 1 DK27',
+  programDate: '2026-10-20',
+  startTime: '02:30 Petang',
+  endTime: '04:00 Petang',
+  location: 'BILIK GURU SK SUNGAI BAYAN',
+  coordinator: 'BENEDICT TILLAI MAURICE',
+  objectives: [
+    'Membawa pendedahan dan pemahaman kepada guru tentang kandungan, struktur serta perubahan dalam Dokumen Pelajaran Bahasa Inggeris Tahun 1 bagi tahun 2027.',
+    'Meningkatkan pengetahuan dan kefahaman guru tentang pelaksanaan kurikulum Bahasa Inggeris Tahun 1 agar selaras dengan ketetapan dan panduan yang ditetapkan oleh Kementerian Pendidikan Malaysia.',
+    'Membimbing guru merancang pengajaran dan pembelajaran yang berkesan, bersesuaian dengan tahap penguasaan murid serta keperluan kurikulum baharu.'
+  ],
+  activities: [
+    'Program dilaksanakan melalui sesi perkongsian dan penataran yang memfokuskan penerangan tentang Dokumen Pelajaran Bahasa Inggeris Tahun 1 bagi tahun 2027, termasuk struktur dokumen, kandungan kurikulum, standard pembelajaran serta implikasi terhadap perancangan dan pelaksanaan pengajaran dan pembelajaran di bilik darjah. Sesi turut memberi ruang kepada guru untuk berbincang, mengemukakan pertanyaan dan berkongsi pandangan bagi memastikan kefahaman yang lebih jelas tentang pelaksanaan kurikulum tersebut.'
+  ],
+  summary: [
+    'Secara keseluruhannya, program ini diharapkan dapat meningkatkan kefahaman dan kesediaan guru dalam melaksanakan kurikulum Bahasa Inggeris Tahun 1 bagi tahun 2027. Perkongsian ini juga menjadi platform untuk menyelaraskan pemahaman guru serta memperkukuh perancangan pengajaran dan pembelajaran yang lebih sistematik, berkesan dan berpusatkan murid. Keberkesanan program boleh dinilai melalui maklum balas peserta, tahap kefahaman guru dan kesediaan mereka menyediakan perancangan pengajaran berdasarkan dokumen yang telah ditatar.'
+  ],
+  images: [
+    'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=600&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=600&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=60'
+  ],
+  reporterName: 'BENEDICT TILLAI MAURICE',
+  reporterDesignation: 'GAB\nSK Sungai Bayan'
+};
+
 const formatDateDMY = (dateStr) => {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -28,6 +57,13 @@ const formatDateDMY = (dateStr) => {
   }
   return dateStr;
 };
+
+const timeSlots = [
+  '07:00 Pagi', '07:30 Pagi', '08:00 Pagi', '08:30 Pagi', '09:00 Pagi', '09:30 Pagi',
+  '10:00 Pagi', '10:30 Pagi', '11:00 Pagi', '11:30 Pagi', '12:00 Tengah Hari', '12:30 Tengah Hari',
+  '01:00 Petang', '01:30 Petang', '02:00 Petang', '02:30 Petang', '03:00 Petang', '03:30 Petang',
+  '04:00 Petang', '04:30 Petang', '05:00 Petang', '05:30 Petang', '06:00 Petang', '08:00 Malam', '09:00 Malam'
+];
 
 const parseCSV = (csvText) => {
   if (!csvText) return [];
@@ -95,6 +131,10 @@ export default function App() {
     return localStorage.getItem('sksb_sheet_url') || DEFAULT_SHEET_URL;
   });
 
+  const [oprSheetUrl, setOprSheetUrl] = useState(() => {
+    return localStorage.getItem('sksb_opr_sheet_url') || DEFAULT_OPR_SHEET_URL;
+  });
+
   const [students, setStudents] = useState(() => {
     try {
       const saved = localStorage.getItem('sksb_students');
@@ -112,6 +152,13 @@ export default function App() {
       return INITIAL_ATTENDANCE;
     }
   });
+
+  // OPR States
+  const [oprForm, setOprForm] = useState(INITIAL_OPR_FORM);
+  const [oprTab, setOprTab] = useState('builder'); // builder | archive
+  const [oprArchiveList, setOprArchiveList] = useState([]);
+  const [isGeneratingOprPdf, setIsGeneratingOprPdf] = useState(false);
+  const [oprArchiveSearch, setOprArchiveSearch] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -175,6 +222,44 @@ export default function App() {
         .catch(err => console.error("Auto sync student error:", err));
     }
   }, [sheetUrl]);
+
+  // Load OPR Archive CSV from Google Sheets
+  useEffect(() => {
+    if (oprSheetUrl && oprSheetUrl.includes('output=csv')) {
+      fetch(oprSheetUrl)
+        .then(res => res.text())
+        .then(csvText => {
+          const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
+          if (lines.length > 1) {
+            const list = [];
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"|"$/g, ''));
+              if (cols.length >= 6) {
+                list.push({
+                  id: `OPR-${i}`,
+                  timestamp: cols[0] || '',
+                  programName: cols[1] || 'Tanpa Tajuk',
+                  programDate: cols[2] || '',
+                  time: cols[3] || '',
+                  location: cols[4] || '',
+                  coordinator: cols[5] || '',
+                  objective1: cols[6] || '',
+                  objective2: cols[7] || '',
+                  objective3: cols[8] || '',
+                  activities: cols[9] || '',
+                  summary: cols[10] || '',
+                  reporterName: cols[11] || '',
+                  reporterDesignation: cols[12] || '',
+                  pdfUrl: cols[13] || ''
+                });
+              }
+            }
+            setOprArchiveList(list);
+          }
+        })
+        .catch(err => console.error("OPR Archive Fetch Error:", err));
+    }
+  }, [oprSheetUrl]);
 
   useEffect(() => {
     const fetchLatestAttendance = async () => {
@@ -527,7 +612,6 @@ export default function App() {
 
   const printFilteredStudents = getFilteredPrintStudents();
 
-  // Helper to chunk students into 4 items per page for perfect A4 rendering
   const chunkArray = (array, chunkSize) => {
     const chunks = [];
     for (let i = 0; i < array.length; i += chunkSize) {
@@ -538,7 +622,6 @@ export default function App() {
 
   const studentChunks = chunkArray(printFilteredStudents, 4);
 
-  // PDF Download Handler using html2pdf.js
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
     
@@ -571,6 +654,97 @@ export default function App() {
     } finally {
       setIsGeneratingPdf(false);
     }
+  };
+
+  // OPR Dynamic Field Handlers
+  const handleOprArrayChange = (field, index, value) => {
+    setOprForm(prev => {
+      const list = [...prev[field]];
+      list[index] = value;
+      return { ...prev, [field]: list };
+    });
+  };
+
+  const addOprArrayItem = (field) => {
+    setOprForm(prev => ({
+      ...prev,
+      [field]: [...prev[field], '']
+    }));
+  };
+
+  const removeOprArrayItem = (field, index) => {
+    setOprForm(prev => {
+      if (prev[field].length <= 1) return prev;
+      const list = prev[field].filter((_, idx) => idx !== index);
+      return { ...prev, [field]: list };
+    });
+  };
+
+  const handleOprImageUpload = (index, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setOprForm(prev => {
+          const imgs = [...prev.images];
+          imgs[index] = reader.result;
+          return { ...prev, images: imgs };
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Download OPR Single-Page A4 PDF
+  const handleDownloadOprPdf = async () => {
+    setIsGeneratingOprPdf(true);
+
+    const loadHtml2Pdf = () => new Promise((resolve, reject) => {
+      if (window.html2pdf) return resolve(window.html2pdf);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.onload = () => resolve(window.html2pdf);
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+
+    try {
+      const html2pdf = await loadHtml2Pdf();
+      const element = document.getElementById('opr-preview-a4');
+
+      const opt = {
+        margin:       0,
+        filename:     `OPR_${oprForm.programName.replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('OPR PDF Generation error:', err);
+      alert('Ralat semasa menjana PDF OPR.');
+    } finally {
+      setIsGeneratingOprPdf(false);
+    }
+  };
+
+  const loadOprFromArchive = (archiveItem) => {
+    setOprForm({
+      programName: archiveItem.programName,
+      programDate: archiveItem.programDate || '2026-10-20',
+      startTime: archiveItem.time.split('-')[0]?.trim() || '02:30 Petang',
+      endTime: archiveItem.time.split('-')[1]?.trim() || '04:00 Petang',
+      location: archiveItem.location,
+      coordinator: archiveItem.coordinator,
+      objectives: [archiveItem.objective1, archiveItem.objective2, archiveItem.objective3].filter(Boolean),
+      activities: archiveItem.activities ? [archiveItem.activities] : [''],
+      summary: archiveItem.summary ? [archiveItem.summary] : [''],
+      images: INITIAL_OPR_FORM.images,
+      reporterName: archiveItem.reporterName,
+      reporterDesignation: archiveItem.reporterDesignation
+    });
+    setOprTab('builder');
   };
 
   const getUniqueAttendanceForDate = (date) => {
@@ -1040,6 +1214,14 @@ export default function App() {
               </button>
 
               <button 
+                onClick={() => setActiveTab('opr')}
+                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'opr' ? 'bg-blue-600 text-white font-bold shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Laporan OPR</span>
+              </button>
+
+              <button 
                 onClick={() => setActiveTab('print')}
                 className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'print' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'}`}
               >
@@ -1075,6 +1257,482 @@ export default function App() {
             </nav>
 
             <main className="flex-1 p-4 md:p-5 overflow-y-auto max-w-7xl">
+              {activeTab === 'opr' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-slate-900 text-white p-4 rounded-xl shadow-md no-print">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-blue-600/30 p-2 rounded-xl border border-blue-400/40">
+                        <FileText className="w-6 h-6 text-blue-300" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold">ONE PAGE REPORT (OPR) AUTOMATOR</h2>
+                        <p className="text-xs text-slate-400">Penjana laporan aktiviti sekolah berformat A4 dengan pratinjau langsung.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setOprTab('builder')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${oprTab === 'builder' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Bina OPR Baru</span>
+                      </button>
+                      <button 
+                        onClick={() => setOprTab('archive')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${oprTab === 'archive' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                      >
+                        <History className="w-3.5 h-3.5" />
+                        <span>Peti Arkib ({oprArchiveList.length})</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {oprTab === 'builder' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                      {/* LEFT: FORM BUILDER */}
+                      <div className="lg:col-span-6 bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-4 max-h-[85vh] overflow-y-auto no-print shadow-xl">
+                        <h3 className="text-sm font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2">
+                          I. MAKLUMAT UMUM PROGRAM
+                        </h3>
+
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Program / Aktiviti *</label>
+                            <input 
+                              type="text" 
+                              value={oprForm.programName}
+                              onChange={e => setOprForm({ ...oprForm, programName: e.target.value })}
+                              placeholder="Contoh: Perkongsian Penataran Bahasa Inggeris"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Tarikh Program *</label>
+                              <input 
+                                type="date" 
+                                value={oprForm.programDate}
+                                onChange={e => setOprForm({ ...oprForm, programDate: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Masa Mula *</label>
+                              <select 
+                                value={oprForm.startTime}
+                                onChange={e => setOprForm({ ...oprForm, startTime: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                              >
+                                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Masa Tamat *</label>
+                              <select 
+                                value={oprForm.endTime}
+                                onChange={e => setOprForm({ ...oprForm, endTime: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                              >
+                                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Tempat / Lokasi *</label>
+                              <input 
+                                type="text" 
+                                value={oprForm.location}
+                                onChange={e => setOprForm({ ...oprForm, location: e.target.value })}
+                                placeholder="Contoh: Bilik Guru SK Sungai Bayan"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Penyelaras Program *</label>
+                              <input 
+                                type="text" 
+                                value={oprForm.coordinator}
+                                onChange={e => setOprForm({ ...oprForm, coordinator: e.target.value })}
+                                placeholder="Contoh: BENEDICT TILLAI MAURICE"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:border-blue-500 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* OBJEKTIF PROGRAM */}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2">
+                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">II. OBJEKTIF PROGRAM</h3>
+                            <button 
+                              type="button" 
+                              onClick={() => addOprArrayItem('objectives')}
+                              className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 hover:bg-emerald-900 px-2 py-0.5 rounded border border-emerald-800 transition flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" /> Tambah Poin
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {oprForm.objectives.map((obj, idx) => (
+                              <div key={idx} className="flex gap-2 items-start">
+                                <span className="text-xs font-bold text-slate-500 pt-2">{idx + 1}.</span>
+                                <textarea 
+                                  rows="2"
+                                  value={obj}
+                                  onChange={e => handleOprArrayChange('objectives', idx, e.target.value)}
+                                  placeholder={`Objektif Poin ${idx + 1}`}
+                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
+                                />
+                                {oprForm.objectives.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => removeOprArrayItem('objectives', idx)}
+                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded mt-1"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* RINGKASAN AKTIVITI UTAMA */}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2">
+                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">III. RINGKASAN AKTIVITI UTAMA</h3>
+                            <button 
+                              type="button" 
+                              onClick={() => addOprArrayItem('activities')}
+                              className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 hover:bg-emerald-900 px-2 py-0.5 rounded border border-emerald-800 transition flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" /> Tambah Poin
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {oprForm.activities.map((act, idx) => (
+                              <div key={idx} className="flex gap-2 items-start">
+                                <span className="text-xs font-bold text-slate-500 pt-2">•</span>
+                                <textarea 
+                                  rows="3"
+                                  value={act}
+                                  onChange={e => handleOprArrayChange('activities', idx, e.target.value)}
+                                  placeholder={`Kandungan ringkasan aktiviti utama ${idx + 1}`}
+                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
+                                />
+                                {oprForm.activities.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => removeOprArrayItem('activities', idx)}
+                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded mt-1"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* RUMUSAN & PENILAIAN */}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2">
+                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">IV. RUMUSAN & PENILAIAN</h3>
+                            <button 
+                              type="button" 
+                              onClick={() => addOprArrayItem('summary')}
+                              className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 hover:bg-emerald-900 px-2 py-0.5 rounded border border-emerald-800 transition flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" /> Tambah Poin
+                            </button>
+                          </div>
+
+                          <div className="space-y-2">
+                            {oprForm.summary.map((sum, idx) => (
+                              <div key={idx} className="flex gap-2 items-start">
+                                <span className="text-xs font-bold text-slate-500 pt-2">•</span>
+                                <textarea 
+                                  rows="3"
+                                  value={sum}
+                                  onChange={e => handleOprArrayChange('summary', idx, e.target.value)}
+                                  placeholder={`Kandungan rumusan program ${idx + 1}`}
+                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
+                                />
+                                {oprForm.summary.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => removeOprArrayItem('summary', idx)}
+                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded mt-1"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* LAMPIRAN GAMBAR */}
+                        <div className="pt-2">
+                          <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-1 mb-2">
+                            V. LAMPIRAN FOTO PROGRAM (2 HINGGA 4 FOTO)
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[0, 1, 2, 3].map(imgIdx => (
+                              <div key={imgIdx} className="bg-slate-950 p-2 rounded-lg border border-slate-800 space-y-1">
+                                <label className="block text-[10px] font-bold text-slate-400">Gambar {imgIdx + 1}</label>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  onChange={e => handleOprImageUpload(imgIdx, e)}
+                                  className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* PENYEDIA LAPORAN */}
+                        <div className="pt-2 space-y-2">
+                          <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-1">
+                            VI. PENYEDIA LAPORAN
+                          </h3>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Penuh Penyedia *</label>
+                              <input 
+                                type="text" 
+                                value={oprForm.reporterName}
+                                onChange={e => setOprForm({ ...oprForm, reporterName: e.target.value })}
+                                placeholder="BENEDICT TILLAI MAURICE"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-300 mb-1">Jawatan Penyedia *</label>
+                              <input 
+                                type="text" 
+                                value={oprForm.reporterDesignation}
+                                onChange={e => setOprForm({ ...oprForm, reporterDesignation: e.target.value })}
+                                placeholder="GAB SK Sungai Bayan"
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={handleDownloadOprPdf}
+                          disabled={isGeneratingOprPdf}
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs uppercase tracking-wider mt-4"
+                        >
+                          <Download className={`w-4 h-4 ${isGeneratingOprPdf ? 'animate-bounce' : ''}`} />
+                          <span>{isGeneratingOprPdf ? 'Membuat PDF OPR...' : 'Jana PDF OPR SK Sungai Bayan'}</span>
+                        </button>
+                      </div>
+
+                      {/* RIGHT: LIVE A4 PREVIEW */}
+                      <div className="lg:col-span-6 flex flex-col items-center justify-start">
+                        <div className="mb-2 text-center no-print">
+                          <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
+                            Pratinjau Langsung A4 Format OPR
+                          </span>
+                        </div>
+
+                        <div 
+                          id="opr-preview-a4"
+                          className="w-[210mm] min-h-[297mm] bg-white text-slate-900 shadow-2xl p-8 relative flex flex-col justify-between border border-slate-200 text-xs overflow-hidden leading-tight font-sans"
+                          style={{ boxSizing: 'border-box' }}
+                        >
+                          {/* Aesthetic Top Right Geometric Graphics */}
+                          <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none opacity-20">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600 rounded-bl-full"></div>
+                            <div className="absolute top-12 right-12 w-24 h-24 bg-amber-400 rounded-bl-full"></div>
+                          </div>
+
+                          <div>
+                            {/* SCHOOL HEADER */}
+                            <div className="flex items-center space-x-4 border-b-2 border-slate-800 pb-3 mb-3 relative z-10">
+                              <img 
+                                src="/logo.png" 
+                                alt="Logo SK Sungai Bayan" 
+                                className="w-14 h-14 object-contain"
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                              <div>
+                                <h1 className="text-xl font-black text-slate-900 tracking-wider">SK SUNGAI BAYAN</h1>
+                                <h2 className="text-sm font-black text-blue-700 tracking-wide">ONE PAGE REPORT (OPR)</h2>
+                                <p className="text-[10px] text-slate-500 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
+                              </div>
+                            </div>
+
+                            {/* MAKLUMAT TABLE */}
+                            <table className="w-full border-collapse border border-slate-800 text-[11px] mb-3">
+                              <tbody>
+                                <tr className="border-b border-slate-800">
+                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 w-36 uppercase text-slate-800">NAMA PROGRAM:</td>
+                                  <td className="px-2.5 py-1.5 font-bold uppercase text-slate-900">{oprForm.programName}</td>
+                                </tr>
+                                <tr className="border-b border-slate-800">
+                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">TARIKH PROGRAM:</td>
+                                  <td className="px-2.5 py-1.5 font-medium">{formatDateDMY(oprForm.programDate)}</td>
+                                </tr>
+                                <tr className="border-b border-slate-800">
+                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">MASA PROGRAM:</td>
+                                  <td className="px-2.5 py-1.5 font-medium">{oprForm.startTime} - {oprForm.endTime}</td>
+                                </tr>
+                                <tr className="border-b border-slate-800">
+                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">TEMPAT / LOKASI:</td>
+                                  <td className="px-2.5 py-1.5 font-bold uppercase">{oprForm.location}</td>
+                                </tr>
+                                <tr>
+                                  <td className="bg-slate-100 font-extrabold px-2.5 py-1.5 border-r border-slate-800 uppercase text-slate-800">PENYELARAS PROGRAM:</td>
+                                  <td className="px-2.5 py-1.5 font-bold uppercase text-blue-900">{oprForm.coordinator}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            {/* SECTION I: OBJEKTIF */}
+                            <div className="mb-3">
+                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[11px] uppercase">
+                                I. OBJEKTIF PROGRAM
+                              </h3>
+                              <ol className="list-decimal list-inside text-[10.5px] text-slate-800 space-y-1 text-justify pl-1">
+                                {oprForm.objectives.filter(Boolean).map((obj, i) => (
+                                  <li key={i} className="leading-tight"><span className="font-semibold">{obj}</span></li>
+                                ))}
+                              </ol>
+                            </div>
+
+                            {/* SECTION II: RINGKASAN AKTIVITI */}
+                            <div className="mb-3">
+                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[11px] uppercase">
+                                II. RINGKASAN AKTIVITI UTAMA
+                              </h3>
+                              <ul className="list-disc list-inside text-[10.5px] text-slate-800 space-y-1 text-justify pl-1">
+                                {oprForm.activities.filter(Boolean).map((act, i) => (
+                                  <li key={i} className="leading-tight">{act}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {/* SECTION III: RUMUSAN */}
+                            <div className="mb-3">
+                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[11px] uppercase">
+                                III. RUMUSAN PROGRAM
+                              </h3>
+                              <ul className="list-disc list-inside text-[10.5px] text-slate-800 space-y-1 text-justify pl-1">
+                                {oprForm.summary.filter(Boolean).map((sum, i) => (
+                                  <li key={i} className="leading-tight">{sum}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {/* SECTION IV: LAMPIRAN GAMBAR */}
+                            <div className="mb-3">
+                              <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1.5 text-[11px] uppercase">
+                                IV. LAMPIRAN FOTOGRAFI PROGRAM
+                              </h3>
+                              <div className="grid grid-cols-2 gap-2 border border-slate-800 p-1.5 bg-slate-50 rounded">
+                                {oprForm.images.slice(0, 4).map((imgUrl, i) => (
+                                  <div key={i} className="h-28 bg-slate-200 border border-slate-400 overflow-hidden rounded flex items-center justify-center">
+                                    {imgUrl ? (
+                                      <img src={imgUrl} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase">Foto {i + 1}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* SECTION V: PENYEDIA */}
+                          <div className="pt-2 border-t border-slate-200 flex items-end justify-between relative z-10">
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase">Disediakan Oleh:</p>
+                              <div className="h-8 border-b border-dashed border-slate-400 w-48 my-1"></div>
+                              <p className="font-black text-slate-900 uppercase text-[11px]">{oprForm.reporterName}</p>
+                              <p className="text-[10px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation}</p>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="text-[9px] font-mono text-slate-400">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
+                            </div>
+                          </div>
+
+                          {/* Bottom Geometric Design Accent */}
+                          <div className="absolute bottom-0 left-0 w-full h-3 bg-gradient-to-r from-blue-900 via-amber-500 to-blue-900"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {oprTab === 'archive' && (
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 border-slate-100">
+                        <div>
+                          <h3 className="font-bold text-slate-900 text-base">Peti Arkib & Sejarah OPR SK Sungai Bayan</h3>
+                          <p className="text-xs text-slate-500">Semua rekod laporan aktiviti yang telah dijana dan disimpan dalam pangkalan data Google Sheets.</p>
+                        </div>
+
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                          <input 
+                            type="text" 
+                            placeholder="Cari tajuk program..."
+                            value={oprArchiveSearch}
+                            onChange={e => setOprArchiveSearch(e.target.value)}
+                            className="pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none w-64 focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
+                            <tr>
+                              <th className="p-3">Tarikh Program</th>
+                              <th className="p-3">Nama Program / Aktiviti</th>
+                              <th className="p-3">Lokasi</th>
+                              <th className="p-3">Penyelaras</th>
+                              <th className="p-3">Penyedia Laporan</th>
+                              <th className="p-3 text-center">Tindakan</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {oprArchiveList.filter(item => item.programName.toLowerCase().includes(oprArchiveSearch.toLowerCase())).map((item, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50 transition">
+                                <td className="p-3 font-mono font-bold text-blue-700">{formatDateDMY(item.programDate)}</td>
+                                <td className="p-3 font-bold text-slate-900 max-w-xs">{item.programName}</td>
+                                <td className="p-3 text-slate-600">{item.location}</td>
+                                <td className="p-3 text-slate-700">{item.coordinator}</td>
+                                <td className="p-3 text-slate-700">{item.reporterName}</td>
+                                <td className="p-3 text-center">
+                                  <button 
+                                    onClick={() => loadOprFromArchive(item)}
+                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded text-[10px] border border-blue-200 transition inline-flex items-center gap-1"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    <span>Buka & Jana</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeTab === 'dashboard' && (
                 <div className="space-y-4 h-full flex flex-col justify-between">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -1917,41 +2575,70 @@ export default function App() {
                 <div className="space-y-4">
                   <div className="bg-purple-900 text-white p-4 rounded-xl shadow-md">
                     <h2 className="text-lg font-bold">Hub Pentadbir Sistem (Admin)</h2>
-                    <p className="text-purple-200 text-xs">Akses penuh pengurusan data murid, tetapan sekolah, dan selenggara rekod.</p>
+                    <p className="text-purple-200 text-xs">Akses penuh pengurusan data murid, tetapan sekolah, dan selenggara rekod OPR.</p>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                    <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync</h3>
-                    <p className="text-xs text-slate-600">
-                      Tampal pautan <strong>Publish to Web (CSV)</strong> Google Sheets anda di bawah untuk menarik rekod murid terkini.
-                    </p>
-                    
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <input 
-                        type="text" 
-                        value={sheetUrl}
-                        onChange={e => setSheetUrl(e.target.value)}
-                        placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
-                        className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none"
-                      />
-                      <button 
-                        onClick={handleGoogleSheetsSync}
-                        disabled={syncStatus.loading}
-                        className="flex items-center justify-center space-x-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${syncStatus.loading ? 'animate-spin' : ''}`} />
-                        <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Sekarang'}</span>
-                      </button>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                      <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Data Murid)</h3>
+                      <p className="text-xs text-slate-600">
+                        Pautan <strong>Publish to Web (CSV)</strong> data murid sekolah.
+                      </p>
+                      
+                      <div className="flex flex-col gap-2">
+                        <input 
+                          type="text" 
+                          value={sheetUrl}
+                          onChange={e => setSheetUrl(e.target.value)}
+                          placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
+                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+                        />
+                        <button 
+                          onClick={handleGoogleSheetsSync}
+                          disabled={syncStatus.loading}
+                          className="flex items-center justify-center space-x-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${syncStatus.loading ? 'animate-spin' : ''}`} />
+                          <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Data Murid'}</span>
+                        </button>
+                      </div>
+
+                      {syncStatus.message && (
+                        <div className={`p-3 rounded-lg text-xs font-medium flex items-center space-x-2 ${
+                          syncStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                        }`}>
+                          {syncStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                          <span>{syncStatus.message}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {syncStatus.message && (
-                      <div className={`p-3 rounded-lg text-xs font-medium flex items-center space-x-2 ${
-                        syncStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-                      }`}>
-                        {syncStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
-                        <span>{syncStatus.message}</span>
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                      <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Arkib OPR)</h3>
+                      <p className="text-xs text-slate-600">
+                        Pautan <strong>Publish to Web (CSV)</strong> helaian log OPR (`OFR_Logs_SKSB`).
+                      </p>
+                      
+                      <div className="flex flex-col gap-2">
+                        <input 
+                          type="text" 
+                          value={oprSheetUrl}
+                          onChange={e => {
+                            setOprSheetUrl(e.target.value);
+                            localStorage.setItem('sksb_opr_sheet_url', e.target.value);
+                          }}
+                          placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
+                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                        <button 
+                          onClick={() => window.location.reload()}
+                          className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Kemaskini Pautan Arkib OPR</span>
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               )}
