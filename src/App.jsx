@@ -687,17 +687,16 @@ export default function App() {
     }
   };
 
-  // Direct Print Fallback for OPR
+  // Direct Browser Print (100% Bulletproof Fallback)
   const handlePrintOpr = () => {
     window.print();
   };
 
-  // Download OPR Single-Page A4 PDF & Save to Google Sheets API
+  // Safe Download OPR PDF Generator
   const handleDownloadOprPdf = async () => {
     setIsGeneratingOprPdf(true);
     setOprSaveMessage('Sedang menyimpan dan menjana PDF OPR...');
 
-    // Post data to Google Apps Script OPR API if configured
     if (oprApiUrl && oprApiUrl.startsWith('https://script.google.com')) {
       try {
         await fetch(oprApiUrl, {
@@ -726,17 +725,17 @@ export default function App() {
       const element = document.getElementById('opr-preview-a4');
 
       const opt = {
-        margin:       0,
+        margin:       [0, 0, 0, 0],
         filename:     `OPR_${(oprForm.programName || 'Aktiviti').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, allowTaint: true },
+        html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false, imageTimeout: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error('OPR PDF Generation error:', err);
-      alert('Gagal menjana PDF secara automatik. Sila gunakan butang "Cetak OPR" di sebelah untuk terus mencetak / simpan sebagai PDF melalui browser.');
+      alert('Sistem sedang memproses cetakan. Gunakan butang "Cetak OPR" hijau di sebelah untuk cetakan langsung atau simpan sebagai PDF melalui pelayar.');
     } finally {
       setIsGeneratingOprPdf(false);
       setTimeout(() => setOprSaveMessage(''), 4000);
@@ -956,7 +955,7 @@ export default function App() {
       <style>{`
         @page {
           size: A4 portrait;
-          margin: 8mm;
+          margin: 0;
         }
 
         @media print {
@@ -980,16 +979,22 @@ export default function App() {
             width: 100% !important; 
           }
 
-          /* OPR Direct Print Page Setup */
+          /* Fixed Direct Browser Printing for OPR Document */
           #opr-preview-a4 {
-            width: 100% !important;
-            height: 100vh !important;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
             box-shadow: none !important;
             border: none !important;
-            padding: 0 !important;
+            padding: 12mm !important;
             margin: 0 !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
+            background: white !important;
+            z-index: 99999 !important;
+            box-sizing: border-box !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
 
           .pdf-page {
@@ -1609,7 +1614,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* RIGHT: LIVE A4 PREVIEW (DYNAMIC IMAGE RESOLUTION & CONDITIONAL DISPLAY) */}
+                      {/* RIGHT: COLOURFUL & STYLISH LIVE A4 PREVIEW */}
                       <div className="lg:col-span-6 flex flex-col items-center justify-start no-print">
                         <div className="mb-2 text-center">
                           <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
@@ -1618,74 +1623,87 @@ export default function App() {
                         </div>
 
                         {/* Outer Container with Scaled Printable Sheet */}
-                        <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-6 rounded-lg border border-slate-300 relative flex flex-col justify-between aspect-[1/1.414] overflow-hidden text-[10px] leading-tight font-sans">
+                        <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-6 rounded-xl border border-slate-300 relative flex flex-col justify-between aspect-[1/1.414] overflow-hidden text-[10px] leading-tight font-sans">
                           
                           {/* Printable Wrapper targeting PDF generator & browser print */}
-                          <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white">
+                          <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white p-2">
                             <div>
-                              {/* SCHOOL HEADER */}
-                              <div className="flex items-center space-x-3 border-b-2 border-slate-800 pb-2 mb-2">
-                                <img 
-                                  src="/logo.png" 
-                                  alt="Logo SK Sungai Bayan" 
-                                  className="w-10 h-10 object-contain"
-                                  onError={(e) => { e.target.style.display = 'none'; }}
-                                />
-                                <div>
-                                  <h1 className="text-sm font-black text-slate-900 tracking-wider">SK SUNGAI BAYAN</h1>
-                                  <h2 className="text-xs font-black text-blue-700 tracking-wide">ONE PAGE REPORT (OPR)</h2>
-                                  <p className="text-[8px] text-slate-500 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
+                              {/* VIBRANT GRADIENT SCHOOL HEADER */}
+                              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-3 rounded-xl shadow-sm mb-2.5 flex items-center justify-between border-b-2 border-amber-400">
+                                <div className="flex items-center space-x-3">
+                                  <img 
+                                    src="/logo.png" 
+                                    alt="Logo SK Sungai Bayan" 
+                                    className="w-10 h-10 object-contain bg-white/10 p-1 rounded-lg border border-white/20"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                  <div>
+                                    <h1 className="text-sm font-black text-amber-300 tracking-wider">SK SUNGAI BAYAN</h1>
+                                    <h2 className="text-xs font-bold text-white tracking-wide">ONE PAGE REPORT (OPR)</h2>
+                                    <p className="text-[7.5px] text-blue-200 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">
+                                    Laporan Rasmi
+                                  </span>
                                 </div>
                               </div>
 
-                              {/* MAKLUMAT TABLE */}
-                              <table className="w-full border-collapse border border-slate-800 text-[9.5px] mb-2">
+                              {/* MAKLUMAT TABLE WITH COLORFUL BADGES */}
+                              <table className="w-full border-collapse border border-slate-300 text-[9px] mb-2.5 shadow-sm rounded-lg overflow-hidden">
                                 <tbody>
-                                  <tr className="border-b border-slate-800">
-                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 w-32 uppercase text-slate-800">NAMA PROGRAM:</td>
-                                    <td className="px-2 py-1 font-bold uppercase text-slate-900">{oprForm.programName || '—'}</td>
+                                  <tr className="border-b border-slate-200">
+                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 w-32 uppercase text-blue-900">NAMA PROGRAM:</td>
+                                    <td className="px-2 py-1 font-black uppercase text-slate-900 bg-white">{oprForm.programName || '—'}</td>
                                   </tr>
-                                  <tr className="border-b border-slate-800">
-                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">TARIKH PROGRAM:</td>
-                                    <td className="px-2 py-1 font-medium">{formatDateDMY(oprForm.programDate) || '—'}</td>
+                                  <tr className="border-b border-slate-200">
+                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">TARIKH PROGRAM:</td>
+                                    <td className="px-2 py-1 font-semibold text-slate-800 bg-white">{formatDateDMY(oprForm.programDate) || '—'}</td>
                                   </tr>
-                                  <tr className="border-b border-slate-800">
-                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">MASA PROGRAM:</td>
-                                    <td className="px-2 py-1 font-medium">{oprForm.startTime} - {oprForm.endTime}</td>
+                                  <tr className="border-b border-slate-200">
+                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">MASA PROGRAM:</td>
+                                    <td className="px-2 py-1 font-semibold text-slate-800 bg-white">{oprForm.startTime} - {oprForm.endTime}</td>
                                   </tr>
-                                  <tr className="border-b border-slate-800">
-                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">TEMPAT / LOKASI:</td>
-                                    <td className="px-2 py-1 font-bold uppercase">{oprForm.location || '—'}</td>
+                                  <tr className="border-b border-slate-200">
+                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">TEMPAT / LOKASI:</td>
+                                    <td className="px-2 py-1 font-bold uppercase text-slate-900 bg-white">{oprForm.location || '—'}</td>
                                   </tr>
                                   <tr>
-                                    <td className="bg-slate-100 font-extrabold px-2 py-1 border-r border-slate-800 uppercase text-slate-800">PENYELARAS PROGRAM:</td>
-                                    <td className="px-2 py-1 font-bold uppercase text-blue-900">{oprForm.coordinator || '—'}</td>
+                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">PENYELARAS PROGRAM:</td>
+                                    <td className="px-2 py-1 font-black uppercase text-indigo-900 bg-white">{oprForm.coordinator || '—'}</td>
                                   </tr>
                                 </tbody>
                               </table>
 
                               {/* SECTION I: OBJEKTIF */}
-                              <div className="mb-2">
-                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
-                                  I. OBJEKTIF PROGRAM
-                                </h3>
-                                <ol className="list-decimal list-inside text-[9.5px] text-slate-800 space-y-0.5 text-justify pl-1">
+                              <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
+                                <div className="flex items-center space-x-1.5 border-b border-blue-200 pb-1 mb-1">
+                                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                                  <h3 className="font-black text-blue-950 text-[9.5px] uppercase tracking-wide">
+                                    I. OBJEKTIF PROGRAM
+                                  </h3>
+                                </div>
+                                <ol className="list-decimal list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
                                   {oprForm.objectives.filter(Boolean).length === 0 ? (
                                     <li className="text-slate-400 italic font-normal">Tiada objektif dimasukkan...</li>
                                   ) : (
                                     oprForm.objectives.filter(Boolean).map((obj, i) => (
-                                      <li key={i} className="leading-tight"><span className="font-semibold">{obj}</span></li>
+                                      <li key={i} className="leading-tight"><span className="font-semibold text-slate-900">{obj}</span></li>
                                     ))
                                   )}
                                 </ol>
                               </div>
 
                               {/* SECTION II: RINGKASAN AKTIVITI */}
-                              <div className="mb-2">
-                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
-                                  II. RINGKASAN AKTIVITI UTAMA
-                                </h3>
-                                <ul className="list-disc list-inside text-[9.5px] text-slate-800 space-y-0.5 text-justify pl-1">
+                              <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
+                                <div className="flex items-center space-x-1.5 border-b border-emerald-200 pb-1 mb-1">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                  <h3 className="font-black text-emerald-950 text-[9.5px] uppercase tracking-wide">
+                                    II. RINGKASAN AKTIVITI UTAMA
+                                  </h3>
+                                </div>
+                                <ul className="list-disc list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
                                   {oprForm.activities.filter(Boolean).length === 0 ? (
                                     <li className="text-slate-400 italic font-normal">Tiada aktiviti dimasukkan...</li>
                                   ) : (
@@ -1697,11 +1715,14 @@ export default function App() {
                               </div>
 
                               {/* SECTION III: RUMUSAN */}
-                              <div className="mb-2">
-                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
-                                  III. RUMUSAN PROGRAM
-                                </h3>
-                                <ul className="list-disc list-inside text-[9.5px] text-slate-800 space-y-0.5 text-justify pl-1">
+                              <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
+                                <div className="flex items-center space-x-1.5 border-b border-amber-200 pb-1 mb-1">
+                                  <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+                                  <h3 className="font-black text-amber-950 text-[9.5px] uppercase tracking-wide">
+                                    III. RUMUSAN PROGRAM
+                                  </h3>
+                                </div>
+                                <ul className="list-disc list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
                                   {oprForm.summary.filter(Boolean).length === 0 ? (
                                     <li className="text-slate-400 italic font-normal">Tiada rumusan dimasukkan...</li>
                                   ) : (
@@ -1712,24 +1733,27 @@ export default function App() {
                                 </ul>
                               </div>
 
-                              {/* SECTION IV: LAMPIRAN GAMBAR (NO CUTTING / ADAPTIVE IMAGE ASPECT RATIO) */}
+                              {/* SECTION IV: LAMPIRAN GAMBAR (ADAPTIVE IMAGE ASPECT RATIO & COLORFUL BARS) */}
                               <div className="mb-2">
-                                <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
-                                  IV. LAMPIRAN FOTOGRAFI PROGRAM
-                                </h3>
+                                <div className="flex items-center space-x-1.5 border-b border-indigo-200 pb-1 mb-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                  <h3 className="font-black text-indigo-950 text-[9.5px] uppercase tracking-wide">
+                                    IV. LAMPIRAN FOTOGRAFI PROGRAM
+                                  </h3>
+                                </div>
 
                                 {validUploadedImages.length === 0 ? (
-                                  <div className="border border-dashed border-slate-300 p-3 text-center text-slate-400 rounded text-[9px] italic">
+                                  <div className="border border-dashed border-slate-300 p-3 text-center text-slate-400 rounded text-[9px] italic bg-slate-50">
                                     Sila muat naik sekurang-kurangnya 2 keping gambar di sebelah.
                                   </div>
                                 ) : (
-                                  <div className={`grid gap-2 border border-slate-800 p-1.5 bg-slate-50 rounded ${
+                                  <div className={`grid gap-2 border border-slate-300 p-1.5 bg-slate-100 rounded-lg ${
                                     validUploadedImages.length <= 2 ? 'grid-cols-2' : 'grid-cols-2'
                                   }`}>
                                     {validUploadedImages.map((imgUrl, i) => (
                                       <div 
                                         key={i} 
-                                        className={`bg-slate-900 border border-slate-400 overflow-hidden rounded flex items-center justify-center p-0.5 ${
+                                        className={`bg-slate-900 border border-slate-300 overflow-hidden rounded-md flex items-center justify-center p-0.5 shadow-sm ${
                                           validUploadedImages.length <= 2 ? 'h-36' : 'h-24'
                                         }`}
                                       >
@@ -1745,17 +1769,17 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* SECTION V: PENYEDIA */}
-                            <div className="pt-2 border-t border-slate-300 flex items-end justify-between">
+                            {/* SECTION V: PENYEDIA LAPORAN */}
+                            <div className="pt-2 border-t-2 border-slate-800 flex items-end justify-between bg-gradient-to-r from-slate-50 via-white to-blue-50 p-2 rounded-lg border border-slate-200">
                               <div>
-                                <p className="text-[9px] font-bold text-slate-500 uppercase">Disediakan Oleh:</p>
-                                <div className="h-6 border-b border-dashed border-slate-400 w-40 my-1"></div>
-                                <p className="font-black text-slate-900 uppercase text-[10px]">{oprForm.reporterName || '—'}</p>
-                                <p className="text-[9px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation || '—'}</p>
+                                <p className="text-[8.5px] font-black text-blue-900 uppercase tracking-wider">DISEDIAKAN OLEH:</p>
+                                <div className="h-5 border-b border-dashed border-slate-400 w-36 my-1"></div>
+                                <p className="font-black text-slate-900 uppercase text-[9.5px]">{oprForm.reporterName || '—'}</p>
+                                <p className="text-[8.5px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation || '—'}</p>
                               </div>
 
                               <div className="text-right">
-                                <p className="text-[8px] font-mono text-slate-400">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
+                                <p className="text-[8px] font-mono text-slate-400 font-bold">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
                               </div>
                             </div>
                           </div>
@@ -2545,7 +2569,7 @@ export default function App() {
                             <div className="space-y-4 my-auto">
                               <p className="text-sm text-slate-700">Dengan ini diperakui bahawa</p>
                               <h2 className="text-2xl font-black text-amber-700 uppercase underline decoration-amber-400 decoration-2">{s.name}</h2>
-                              <p className="text-xs font-bold text-slate-800">NO ID: {s.id} &nbsp;|&nbsp; KELAS: {s.class}</p>
+                              <p className="text-xs font-bold text-slate-800">NO ID: {s.id}  |  KELAS: {s.class}</p>
                               <p className="text-sm text-slate-700 max-w-xl mx-auto leading-relaxed">
                                 Telah mencapai rekod <strong>Kehadiran 100% (Penuh)</strong> atas komitmen dan disiplin cemerlang yang ditunjukkan.
                               </p>
