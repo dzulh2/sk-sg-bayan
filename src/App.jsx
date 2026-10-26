@@ -22,7 +22,6 @@ const INITIAL_STUDENTS = [
 
 const INITIAL_ATTENDANCE = [];
 
-// Clean & empty initial form state as requested
 const INITIAL_OPR_FORM = {
   programName: '',
   programDate: '',
@@ -148,7 +147,7 @@ export default function App() {
 
   // OPR States
   const [oprForm, setOprForm] = useState(INITIAL_OPR_FORM);
-  const [oprTab, setOprTab] = useState('builder'); // builder | archive
+  const [oprTab, setOprTab] = useState('builder');
   const [oprArchiveList, setOprArchiveList] = useState([]);
   const [isGeneratingOprPdf, setIsGeneratingOprPdf] = useState(false);
   const [oprArchiveSearch, setOprArchiveSearch] = useState('');
@@ -217,7 +216,6 @@ export default function App() {
     }
   }, [sheetUrl]);
 
-  // Load OPR Archive CSV from Google Sheets
   useEffect(() => {
     if (oprSheetUrl && oprSheetUrl.includes('output=csv')) {
       fetch(oprSheetUrl)
@@ -689,6 +687,11 @@ export default function App() {
     }
   };
 
+  // Direct Print Fallback for OPR
+  const handlePrintOpr = () => {
+    window.print();
+  };
+
   // Download OPR Single-Page A4 PDF & Save to Google Sheets API
   const handleDownloadOprPdf = async () => {
     setIsGeneratingOprPdf(true);
@@ -726,14 +729,14 @@ export default function App() {
         margin:       0,
         filename:     `OPR_${(oprForm.programName || 'Aktiviti').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, allowTaint: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
       await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error('OPR PDF Generation error:', err);
-      alert('Ralat semasa menjana PDF OPR.');
+      alert('Gagal menjana PDF secara automatik. Sila gunakan butang "Cetak OPR" di sebelah untuk terus mencetak / simpan sebagai PDF melalui browser.');
     } finally {
       setIsGeneratingOprPdf(false);
       setTimeout(() => setOprSaveMessage(''), 4000);
@@ -946,6 +949,8 @@ export default function App() {
     });
   };
 
+  const validUploadedImages = oprForm.images.filter(img => img !== '' && img !== null);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <style>{`
@@ -965,7 +970,7 @@ export default function App() {
             margin: 0 !important; 
             padding: 0 !important; 
           }
-          header, nav, .no-print { display: none !important; }
+          header, nav, .no-print, .no-print * { display: none !important; }
           main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; overflow: visible !important; }
           
           .print-area { 
@@ -973,6 +978,18 @@ export default function App() {
             padding: 0 !important; 
             margin: 0 !important; 
             width: 100% !important; 
+          }
+
+          /* OPR Direct Print Page Setup */
+          #opr-preview-a4 {
+            width: 100% !important;
+            height: 100vh !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
 
           .pdf-page {
@@ -1571,17 +1588,28 @@ export default function App() {
                           </div>
                         </div>
 
-                        <button 
-                          onClick={handleDownloadOprPdf}
-                          disabled={isGeneratingOprPdf}
-                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs uppercase tracking-wider mt-4"
-                        >
-                          <Download className={`w-4 h-4 ${isGeneratingOprPdf ? 'animate-bounce' : ''}`} />
-                          <span>{isGeneratingOprPdf ? 'Membuat PDF OPR...' : 'Jana PDF OPR SK Sungai Bayan'}</span>
-                        </button>
+                        <div className="flex items-center gap-2 mt-4">
+                          <button 
+                            onClick={handleDownloadOprPdf}
+                            disabled={isGeneratingOprPdf}
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
+                          >
+                            <Download className={`w-4 h-4 ${isGeneratingOprPdf ? 'animate-bounce' : ''}`} />
+                            <span>{isGeneratingOprPdf ? 'Muat Turun PDF...' : 'Muat Turun PDF'}</span>
+                          </button>
+
+                          <button 
+                            onClick={handlePrintOpr}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
+                            title="Cetak terus melalui browser tanpa ralat PDF"
+                          >
+                            <Printer className="w-4 h-4" />
+                            <span>Cetak OPR</span>
+                          </button>
+                        </div>
                       </div>
 
-                      {/* RIGHT: LIVE A4 PREVIEW (COMPACT & PROPORTIONAL) */}
+                      {/* RIGHT: LIVE A4 PREVIEW (DYNAMIC IMAGE RESOLUTION & CONDITIONAL DISPLAY) */}
                       <div className="lg:col-span-6 flex flex-col items-center justify-start no-print">
                         <div className="mb-2 text-center">
                           <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
@@ -1592,7 +1620,7 @@ export default function App() {
                         {/* Outer Container with Scaled Printable Sheet */}
                         <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-6 rounded-lg border border-slate-300 relative flex flex-col justify-between aspect-[1/1.414] overflow-hidden text-[10px] leading-tight font-sans">
                           
-                          {/* Printable Wrapper targeting PDF generator */}
+                          {/* Printable Wrapper targeting PDF generator & browser print */}
                           <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white">
                             <div>
                               {/* SCHOOL HEADER */}
@@ -1684,22 +1712,36 @@ export default function App() {
                                 </ul>
                               </div>
 
-                              {/* SECTION IV: LAMPIRAN GAMBAR */}
+                              {/* SECTION IV: LAMPIRAN GAMBAR (NO CUTTING / ADAPTIVE IMAGE ASPECT RATIO) */}
                               <div className="mb-2">
                                 <h3 className="font-black text-slate-900 border-b border-slate-300 pb-0.5 mb-1 text-[10px] uppercase">
                                   IV. LAMPIRAN FOTOGRAFI PROGRAM
                                 </h3>
-                                <div className="grid grid-cols-2 gap-1.5 border border-slate-800 p-1 bg-slate-50 rounded">
-                                  {oprForm.images.slice(0, 4).map((imgUrl, i) => (
-                                    <div key={i} className="h-20 bg-slate-200 border border-slate-300 overflow-hidden rounded flex items-center justify-center">
-                                      {imgUrl ? (
-                                        <img src={imgUrl} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <span className="text-[8px] font-bold text-slate-400 uppercase">Ruangan Foto {i + 1}</span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
+
+                                {validUploadedImages.length === 0 ? (
+                                  <div className="border border-dashed border-slate-300 p-3 text-center text-slate-400 rounded text-[9px] italic">
+                                    Sila muat naik sekurang-kurangnya 2 keping gambar di sebelah.
+                                  </div>
+                                ) : (
+                                  <div className={`grid gap-2 border border-slate-800 p-1.5 bg-slate-50 rounded ${
+                                    validUploadedImages.length <= 2 ? 'grid-cols-2' : 'grid-cols-2'
+                                  }`}>
+                                    {validUploadedImages.map((imgUrl, i) => (
+                                      <div 
+                                        key={i} 
+                                        className={`bg-slate-900 border border-slate-400 overflow-hidden rounded flex items-center justify-center p-0.5 ${
+                                          validUploadedImages.length <= 2 ? 'h-36' : 'h-24'
+                                        }`}
+                                      >
+                                        <img 
+                                          src={imgUrl} 
+                                          alt={`Foto ${i + 1}`} 
+                                          className="w-full h-full object-contain" 
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
 
