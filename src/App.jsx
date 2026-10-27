@@ -3,7 +3,7 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Download, FileText, Plus, Trash2, Eye, History, Minus
+  Maximize2, Minimize2, RotateCcw, Clock, Download, FileText, Plus, Trash2, Eye, History, Minus, Image
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -103,7 +103,7 @@ const parseCSV = (csvText) => {
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('opr');
 
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
@@ -687,15 +687,56 @@ export default function App() {
     }
   };
 
-  // Direct Browser Print (100% Bulletproof Fallback)
-  const handlePrintOpr = () => {
-    window.print();
+  // 1. Muat turun OPR sebagai PNG (Pasti Berfungsi Tanpa Lag)
+  const handleDownloadOprPng = async () => {
+    setIsGeneratingOprPdf(true);
+    setOprSaveMessage('Sedang menjana imej PNG OPR...');
+
+    const loadHtml2Canvas = () => new Promise((resolve, reject) => {
+      if (window.html2canvas) return resolve(window.html2canvas);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      script.onload = () => resolve(window.html2canvas);
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+
+    try {
+      const html2canvas = await loadHtml2Canvas();
+      const element = document.getElementById('opr-preview-a4');
+
+      if (!element) throw new Error('Elemen pratinjau OPR tidak ditemui.');
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      const fileName = `OPR_${(oprForm.programName || 'Aktiviti').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.png`;
+      
+      link.href = image;
+      link.download = fileName;
+      link.click();
+
+      setOprSaveMessage('Berjaya! Laporan OPR (PNG) telah dimuat turun.');
+    } catch (err) {
+      console.error('Ralat Jana PNG:', err);
+      alert('Gagal menjana PNG. Sila guna butang Cetak OPR.');
+    } finally {
+      setIsGeneratingOprPdf(false);
+      setTimeout(() => setOprSaveMessage(''), 4000);
+    }
   };
 
-  // Safe Download OPR PDF Generator
-  const handleDownloadOprPdf = async () => {
+  // 2. Muat turun OPR sebagai PDF (jsPDF Direct Canvas)
+  const handleDownloadOprPdfDirect = async () => {
     setIsGeneratingOprPdf(true);
-    setOprSaveMessage('Sedang menyimpan dan menjana PDF OPR...');
+    setOprSaveMessage('Sedang menjana laporan PDF...');
 
     if (oprApiUrl && oprApiUrl.startsWith('https://script.google.com')) {
       try {
@@ -705,37 +746,60 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(oprForm)
         });
-        setOprSaveMessage('Rekod OPR berjaya dihantar ke Google Sheets!');
       } catch (err) {
         console.error('OPR API Sync Error:', err);
       }
     }
 
-    const loadHtml2Pdf = () => new Promise((resolve, reject) => {
-      if (window.html2pdf) return resolve(window.html2pdf);
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-      script.onload = () => resolve(window.html2pdf);
-      script.onerror = reject;
-      document.body.appendChild(script);
+    const loadLibraries = () => new Promise((resolve, reject) => {
+      let loaded = 0;
+      const checkDone = () => { if (loaded === 2) resolve(); };
+
+      if (!window.html2canvas) {
+        const s1 = document.createElement('script');
+        s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s1.onload = () => { loaded++; checkDone(); };
+        s1.onerror = reject;
+        document.body.appendChild(s1);
+      } else { loaded++; }
+
+      if (!window.jspdf) {
+        const s2 = document.createElement('script');
+        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s2.onload = () => { loaded++; checkDone(); };
+        s2.onerror = reject;
+        document.body.appendChild(s2);
+      } else { loaded++; }
+
+      checkDone();
     });
 
     try {
-      const html2pdf = await loadHtml2Pdf();
+      await loadLibraries();
       const element = document.getElementById('opr-preview-a4');
 
-      const opt = {
-        margin:       [0, 0, 0, 0],
-        filename:     `OPR_${(oprForm.programName || 'Aktiviti').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false, imageTimeout: 0 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
+      const canvas = await window.html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
 
-      await html2pdf().set(opt).from(element).save();
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`OPR_${(oprForm.programName || 'Aktiviti').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`);
+
+      setOprSaveMessage('Berjaya! Laporan OPR (PDF) telah dimuat turun.');
     } catch (err) {
-      console.error('OPR PDF Generation error:', err);
-      alert('Sistem sedang memproses cetakan. Gunakan butang "Cetak OPR" hijau di sebelah untuk cetakan langsung atau simpan sebagai PDF melalui pelayar.');
+      console.error('Ralat Jana PDF:', err);
+      alert('Gagal menjana PDF. Sila guna butang Cetak OPR.');
     } finally {
       setIsGeneratingOprPdf(false);
       setTimeout(() => setOprSaveMessage(''), 4000);
@@ -979,7 +1043,7 @@ export default function App() {
             width: 100% !important; 
           }
 
-          /* Fixed Direct Browser Printing for OPR Document */
+          /* Direct Printing Fix for OPR Layout */
           #opr-preview-a4 {
             position: fixed !important;
             left: 0 !important;
@@ -988,7 +1052,7 @@ export default function App() {
             height: 297mm !important;
             box-shadow: none !important;
             border: none !important;
-            padding: 12mm !important;
+            padding: 10mm !important;
             margin: 0 !important;
             background: white !important;
             z-index: 99999 !important;
@@ -1593,20 +1657,30 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 mt-4">
+                        {/* ACTION BUTTONS (STABLE & RESPONSIVE) */}
+                        <div className="flex flex-col sm:flex-row items-center gap-2 mt-4">
                           <button 
-                            onClick={handleDownloadOprPdf}
+                            onClick={handleDownloadOprPng}
                             disabled={isGeneratingOprPdf}
-                            className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
+                            className="flex-1 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow-md transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
                           >
                             <Download className={`w-4 h-4 ${isGeneratingOprPdf ? 'animate-bounce' : ''}`} />
-                            <span>{isGeneratingOprPdf ? 'Muat Turun PDF...' : 'Muat Turun PDF'}</span>
+                            <span>{isGeneratingOprPdf ? 'Memproses...' : 'Muat Turun PNG'}</span>
                           </button>
 
                           <button 
-                            onClick={handlePrintOpr}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
-                            title="Cetak terus melalui browser tanpa ralat PDF"
+                            onClick={handleDownloadOprPdfDirect}
+                            disabled={isGeneratingOprPdf}
+                            className="flex-1 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow-md transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span>{isGeneratingOprPdf ? 'Memproses...' : 'Muat Turun PDF'}</span>
+                          </button>
+
+                          <button 
+                            onClick={() => window.print()}
+                            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
+                            title="Cetak terus melalui pelayar"
                           >
                             <Printer className="w-4 h-4" />
                             <span>Cetak OPR</span>
@@ -1733,7 +1807,7 @@ export default function App() {
                                 </ul>
                               </div>
 
-                              {/* SECTION IV: LAMPIRAN GAMBAR (ADAPTIVE IMAGE ASPECT RATIO & COLORFUL BARS) */}
+                              {/* SECTION IV: LAMPIRAN GAMBAR (ADAPTIVE ASPECT RATIO) */}
                               <div className="mb-2">
                                 <div className="flex items-center space-x-1.5 border-b border-indigo-200 pb-1 mb-1.5">
                                   <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
