@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
-const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csvv"; 
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
 const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbyM_nTKRqH36YZCv0qKxRA8EPWB1_rdUk2jn2mEgCoY8p8AJDlQc8L7v8N8XU2CrYXi/exec"; 
 const DEFAULT_OPR_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKo-4VcOm_RzJxqe6YhGuMvrHf7H8rpsYdTZZdwf16yALXY1MMNaHVq7ZW05sSG_beOug2P8NT0Ta6/pub?gid=0&single=true&output=csv";
 const OPR_API_URL = "https://script.google.com/macros/s/AKfycbz4_eMwCM5K45eBtzqswYho9d-rHTsyBs1uNZ8gDVyynO19ErXnvnkRxY4G0rP8AfGa/exec"; 
@@ -101,17 +101,16 @@ const parseCSV = (csvText) => {
   return parsedStudents;
 };
 
-// Pembantu tunggu semua imej dimuatkan sebelum proses canvas
-const waitForImagesToLoad = (element) => {
-  const imgs = element.querySelectorAll('img');
-  const promises = Array.from(imgs).map(img => {
-    if (img.complete) return Promise.resolve();
-    return new Promise(resolve => {
-      img.onload = resolve;
-      img.onerror = resolve; 
-    });
+// Helper memuatkan skrip luaran (dom-to-image-more & jsPDF)
+const loadExternalScript = (src) => {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.body.appendChild(script);
   });
-  return Promise.all(promises);
 };
 
 export default function App() {
@@ -700,7 +699,7 @@ export default function App() {
     }
   };
 
-  // 1. Muat Turun PNG (Pasti Berfungsi & Tanpa Lag)
+  // 1. Muat Turun PNG Menggunakan dom-to-image-more (Khas Elak Freeze & Ralat Image)
   const handleDownloadOprPng = async () => {
     setIsGeneratingOprPdf(true);
     setOprSaveMessage('Sedang menjana imej PNG OPR...');
@@ -709,43 +708,29 @@ export default function App() {
       const element = document.getElementById('opr-preview-a4');
       if (!element) throw new Error('Elemen pratinjau OPR tidak ditemui.');
 
-      await waitForImagesToLoad(element);
+      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
 
-      if (!window.html2canvas) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
-        });
-      }
-
-      const canvas = await window.html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        imageTimeout: 5000
+      const dataUrl = await window.domtoimage.toPng(element, {
+        bgcolor: '#ffffff',
+        quality: 0.95
       });
 
       const link = document.createElement('a');
       link.download = `OPR_${(oprForm.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
 
       setOprSaveMessage('Berjaya! Laporan OPR (PNG) telah dimuat turun.');
     } catch (err) {
       console.error('Ralat Jana PNG:', err);
-      alert('Gagal menjana PNG. Sila pastikan imej yang dimuat naik bersaiz sesuai.');
+      alert('Gagal menjana PNG. Sila guna butang Cetak OPR.');
     } finally {
       setIsGeneratingOprPdf(false);
       setTimeout(() => setOprSaveMessage(''), 4000);
     }
   };
 
-  // 2. Muat Turun PDF Direct (Tanpa Membuka Tetingkap Baru / Freeze)
+  // 2. Muat Turun PDF Menggunakan dom-to-image-more + jsPDF (Ringan & Selamat)
   const handleDownloadOprPdfDirect = async () => {
     setIsGeneratingOprPdf(true);
     setOprSaveMessage('Sedang menjana laporan PDF...');
@@ -767,41 +752,17 @@ export default function App() {
       const element = document.getElementById('opr-preview-a4');
       if (!element) throw new Error('Elemen pratinjau OPR tidak ditemui.');
 
-      await waitForImagesToLoad(element);
+      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
+      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
 
-      if (!window.html2canvas) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
-        });
-      }
-
-      if (!window.jspdf) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
-        });
-      }
-
-      const canvas = await window.html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff'
+      const dataUrl = await window.domtoimage.toJpeg(element, {
+        bgcolor: '#ffffff',
+        quality: 0.92
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 297);
       pdf.save(`OPR_${(oprForm.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`);
 
       setOprSaveMessage('Berjaya! Laporan OPR (PDF) telah dimuat turun.');
@@ -1031,46 +992,42 @@ export default function App() {
         }
 
         @media print {
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+          body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
-          body { 
-            background: white !important; 
-            color: black !important; 
-            margin: 0 !important; 
-            padding: 0 !important; 
+
+          header, nav, .no-print {
+            display: none !important;
           }
-          header, nav, .no-print, .no-print * { display: none !important; }
-          main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; overflow: visible !important; }
-          
+
+          /* Memastikan paparan cetak langsung OPR dipaparkan secara sempurna tanpa skrin putih */
+          #opr-preview-a4 {
+            display: block !important;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 10mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: white !important;
+            z-index: 999999 !important;
+            box-sizing: border-box !important;
+          }
+
+          #opr-preview-a4 * {
+            visibility: visible !important;
+          }
+
           .print-area { 
             display: block !important; 
             padding: 0 !important; 
             margin: 0 !important; 
             width: 100% !important; 
-          }
-
-          /* Fixed Direct Browser Printing for OPR Document */
-          body * {
-            visibility: hidden !important;
-          }
-          
-          #opr-preview-a4, #opr-preview-a4 * {
-            visibility: visible !important;
-          }
-
-          #opr-preview-a4 {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            margin: 0 !important;
-            padding: 10mm !important;
-            background: white !important;
-            box-shadow: none !important;
-            border: none !important;
           }
 
           .pdf-page {
@@ -1512,10 +1469,8 @@ export default function App() {
                                     type="button" 
                                     onClick={() => removeOprArrayItem('objectives', idx)}
                                     className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px]"
-                                    title="Padam Poin Ini"
                                   >
                                     <Minus className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Padam</span>
                                   </button>
                                 )}
                               </div>
@@ -1552,10 +1507,8 @@ export default function App() {
                                     type="button" 
                                     onClick={() => removeOprArrayItem('activities', idx)}
                                     className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px] mt-1"
-                                    title="Padam Poin Ini"
                                   >
                                     <Minus className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Padam</span>
                                   </button>
                                 )}
                               </div>
@@ -1592,10 +1545,8 @@ export default function App() {
                                     type="button" 
                                     onClick={() => removeOprArrayItem('summary', idx)}
                                     className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px] mt-1"
-                                    title="Padam Poin Ini"
                                   >
                                     <Minus className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Padam</span>
                                   </button>
                                 )}
                               </div>
@@ -1669,7 +1620,7 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* ACTION BUTTONS (STABLE & RESPONSIVE) */}
+                        {/* BUTANG TINDAKAN */}
                         <div className="flex flex-col sm:flex-row items-center gap-2 mt-4">
                           <button 
                             onClick={handleDownloadOprPng}
@@ -1692,7 +1643,6 @@ export default function App() {
                           <button 
                             onClick={() => window.print()}
                             className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
-                            title="Cetak terus melalui pelayar"
                           >
                             <Printer className="w-4 h-4" />
                             <span>Cetak OPR</span>
@@ -1700,7 +1650,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* RIGHT: COLOURFUL & STYLISH LIVE A4 PREVIEW */}
+                      {/* RIGHT: LIVE A4 PREVIEW */}
                       <div className="lg:col-span-6 flex flex-col items-center justify-start no-print">
                         <div className="mb-2 text-center">
                           <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
@@ -1708,13 +1658,9 @@ export default function App() {
                           </span>
                         </div>
 
-                        {/* Outer Container with Scaled Printable Sheet */}
                         <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-6 rounded-xl border border-slate-300 relative flex flex-col justify-between aspect-[1/1.414] overflow-hidden text-[10px] leading-tight font-sans">
-                          
-                          {/* Printable Wrapper targeting PDF generator & browser print */}
                           <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white p-2">
                             <div>
-                              {/* VIBRANT GRADIENT SCHOOL HEADER */}
                               <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-3 rounded-xl shadow-sm mb-2.5 flex items-center justify-between border-b-2 border-amber-400">
                                 <div className="flex items-center space-x-3">
                                   <img 
@@ -1736,7 +1682,6 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {/* MAKLUMAT TABLE WITH COLORFUL BADGES */}
                               <table className="w-full border-collapse border border-slate-300 text-[9px] mb-2.5 shadow-sm rounded-lg overflow-hidden">
                                 <tbody>
                                   <tr className="border-b border-slate-200">
@@ -1762,13 +1707,10 @@ export default function App() {
                                 </tbody>
                               </table>
 
-                              {/* SECTION I: OBJEKTIF */}
                               <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
                                 <div className="flex items-center space-x-1.5 border-b border-blue-200 pb-1 mb-1">
                                   <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                                  <h3 className="font-black text-blue-950 text-[9.5px] uppercase tracking-wide">
-                                    I. OBJEKTIF PROGRAM
-                                  </h3>
+                                  <h3 className="font-black text-blue-950 text-[9.5px] uppercase tracking-wide">I. OBJEKTIF PROGRAM</h3>
                                 </div>
                                 <ol className="list-decimal list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
                                   {oprForm.objectives.filter(Boolean).length === 0 ? (
@@ -1781,13 +1723,10 @@ export default function App() {
                                 </ol>
                               </div>
 
-                              {/* SECTION II: RINGKASAN AKTIVITI */}
                               <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
                                 <div className="flex items-center space-x-1.5 border-b border-emerald-200 pb-1 mb-1">
                                   <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                                  <h3 className="font-black text-emerald-950 text-[9.5px] uppercase tracking-wide">
-                                    II. RINGKASAN AKTIVITI UTAMA
-                                  </h3>
+                                  <h3 className="font-black text-emerald-950 text-[9.5px] uppercase tracking-wide">II. RINGKASAN AKTIVITI UTAMA</h3>
                                 </div>
                                 <ul className="list-disc list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
                                   {oprForm.activities.filter(Boolean).length === 0 ? (
@@ -1800,13 +1739,10 @@ export default function App() {
                                 </ul>
                               </div>
 
-                              {/* SECTION III: RUMUSAN */}
                               <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
                                 <div className="flex items-center space-x-1.5 border-b border-amber-200 pb-1 mb-1">
                                   <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                                  <h3 className="font-black text-amber-950 text-[9.5px] uppercase tracking-wide">
-                                    III. RUMUSAN PROGRAM
-                                  </h3>
+                                  <h3 className="font-black text-amber-950 text-[9.5px] uppercase tracking-wide">III. RUMUSAN PROGRAM</h3>
                                 </div>
                                 <ul className="list-disc list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
                                   {oprForm.summary.filter(Boolean).length === 0 ? (
@@ -1819,13 +1755,10 @@ export default function App() {
                                 </ul>
                               </div>
 
-                              {/* SECTION IV: LAMPIRAN GAMBAR */}
                               <div className="mb-2">
                                 <div className="flex items-center space-x-1.5 border-b border-indigo-200 pb-1 mb-1.5">
                                   <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                                  <h3 className="font-black text-indigo-950 text-[9.5px] uppercase tracking-wide">
-                                    IV. LAMPIRAN FOTOGRAFI PROGRAM
-                                  </h3>
+                                  <h3 className="font-black text-indigo-950 text-[9.5px] uppercase tracking-wide">IV. LAMPIRAN FOTOGRAFI PROGRAM</h3>
                                 </div>
 
                                 {validUploadedImages.length === 0 ? (
@@ -1855,7 +1788,6 @@ export default function App() {
                               </div>
                             </div>
 
-                            {/* SECTION V: PENYEDIA LAPORAN */}
                             <div className="pt-2 border-t-2 border-slate-800 flex items-end justify-between bg-gradient-to-r from-slate-50 via-white to-blue-50 p-2 rounded-lg border border-slate-200">
                               <div>
                                 <p className="text-[8.5px] font-black text-blue-900 uppercase tracking-wider">DISEDIAKAN OLEH:</p>
@@ -1869,7 +1801,6 @@ export default function App() {
                               </div>
                             </div>
                           </div>
-
                         </div>
                       </div>
                     </div>
