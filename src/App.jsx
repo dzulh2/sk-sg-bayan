@@ -114,29 +114,14 @@ const loadExternalScript = (src) => {
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState('opr');
+  const [activeTab, setActiveTab] = useState('dashboard');
 
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const today = new Date();
-    return today.getMonth();
-  });
-
-  const [sheetUrl, setSheetUrl] = useState(() => {
-    return localStorage.getItem('sksb_sheet_url') || DEFAULT_SHEET_URL;
-  });
-
-  const [oprSheetUrl, setOprSheetUrl] = useState(() => {
-    return localStorage.getItem('sksb_opr_sheet_url') || DEFAULT_OPR_SHEET_URL;
-  });
-
-  const [oprApiUrl, setOprApiUrl] = useState(() => {
-    return localStorage.getItem('sksb_opr_api_url') || OPR_API_URL;
-  });
+  const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('sksb_sheet_url') || DEFAULT_SHEET_URL);
+  const [oprSheetUrl, setOprSheetUrl] = useState(() => localStorage.getItem('sksb_opr_sheet_url') || DEFAULT_OPR_SHEET_URL);
+  const [oprApiUrl, setOprApiUrl] = useState(() => localStorage.getItem('sksb_opr_api_url') || OPR_API_URL);
 
   const [students, setStudents] = useState(() => {
     try {
@@ -159,8 +144,15 @@ export default function App() {
   // OPR States
   const [oprForm, setOprForm] = useState(INITIAL_OPR_FORM);
   const [oprTab, setOprTab] = useState('builder');
-  const [oprArchiveList, setOprArchiveList] = useState([]);
-  const [isGeneratingOprPdf, setIsGeneratingOprPdf] = useState(false);
+  const [oprArchiveList, setOprArchiveList] = useState(() => {
+    try {
+      const saved = localStorage.getItem('sksb_opr_archive_local');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isSavingOpr, setIsSavingOpr] = useState(false);
   const [oprArchiveSearch, setOprArchiveSearch] = useState('');
   const [oprSaveMessage, setOprSaveMessage] = useState('');
 
@@ -207,8 +199,7 @@ export default function App() {
   const incomingClasses = Array.from(new Set(incomingStudents.map(s => s.class)));
 
   const setToToday = () => {
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
+    setSelectedDate(new Date().toISOString().split('T')[0]);
   };
 
   useEffect(() => {
@@ -253,7 +244,21 @@ export default function App() {
                   summary: cols[10] || '',
                   reporterName: cols[11] || '',
                   reporterDesignation: cols[12] || '',
-                  pdfUrl: cols[13] || ''
+                  pdfUrl: cols[13] || '',
+                  formData: {
+                    programName: cols[1] || 'Tanpa Tajuk',
+                    programDate: cols[2] || '',
+                    startTime: cols[3]?.split('-')[0]?.trim() || '08:00 Pagi',
+                    endTime: cols[3]?.split('-')[1]?.trim() || '12:00 Tengah Hari',
+                    location: cols[4] || '',
+                    coordinator: cols[5] || '',
+                    objectives: [cols[6], cols[7], cols[8]].filter(Boolean),
+                    activities: cols[9] ? cols[9].split('\n') : [''],
+                    summary: cols[10] ? cols[10].split('\n') : [''],
+                    images: ['', '', '', ''],
+                    reporterName: cols[11] || '',
+                    reporterDesignation: cols[12] || ''
+                  }
                 });
               }
             }
@@ -263,6 +268,10 @@ export default function App() {
         .catch(err => console.error("OPR Archive Fetch Error:", err));
     }
   }, [oprSheetUrl]);
+
+  useEffect(() => {
+    localStorage.setItem('sksb_opr_archive_local', JSON.stringify(oprArchiveList));
+  }, [oprArchiveList]);
 
   useEffect(() => {
     const fetchLatestAttendance = async () => {
@@ -614,7 +623,7 @@ export default function App() {
     }
   };
 
-  // OPR Handlers
+  // OPR Dynamic Field Handlers
   const handleOprArrayChange = (field, index, value) => {
     setOprForm(prev => {
       const list = [...prev[field]];
@@ -653,40 +662,35 @@ export default function App() {
     }
   };
 
-  const handleDownloadOprPng = async () => {
-    setIsGeneratingOprPdf(true);
-    setOprSaveMessage('Sedang menjana imej PNG OPR...');
-
-    try {
-      const element = document.getElementById('opr-preview-a4');
-      if (!element) throw new Error('Elemen pratinjau OPR tidak ditemui.');
-
-      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
-
-      const dataUrl = await window.domtoimage.toPng(element, {
-        bgcolor: '#ffffff',
-        quality: 1.0,
-        style: { transform: 'scale(1)', transformOrigin: 'top left' }
-      });
-
-      const link = document.createElement('a');
-      link.download = `OPR_${(oprForm.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.png`;
-      link.href = dataUrl;
-      link.click();
-
-      setOprSaveMessage('Berjaya! Laporan OPR (PNG) telah dimuat turun.');
-    } catch (err) {
-      console.error('Ralat Jana PNG:', err);
-      alert('Gagal menjana PNG. Sila guna butang Cetak OPR.');
-    } finally {
-      setIsGeneratingOprPdf(false);
-      setTimeout(() => setOprSaveMessage(''), 4000);
+  // 1-BUTTON WORKFLOW: SIMPAN KE ARKIB & GOOGLE SHEETS
+  const handleSaveToArchive = async () => {
+    if (!oprForm.programName.trim()) {
+      alert('Sila masukkan Nama Program / Aktiviti terlebih dahulu.');
+      return;
     }
-  };
 
-  const handleDownloadOprPdfDirect = async () => {
-    setIsGeneratingOprPdf(true);
-    setOprSaveMessage('Sedang menjana laporan PDF...');
+    setIsSavingOpr(true);
+    setOprSaveMessage('Sedang menyimpan laporan OPR ke dalam Peti Arkib & Google Sheets...');
+
+    const newRecordId = `OPR-${Date.now()}`;
+    const newRecord = {
+      id: newRecordId,
+      timestamp: new Date().toLocaleString('ms-MY'),
+      programName: oprForm.programName,
+      programDate: oprForm.programDate,
+      time: `${oprForm.startTime} - ${oprForm.endTime}`,
+      location: oprForm.location,
+      coordinator: oprForm.coordinator,
+      objective1: oprForm.objectives[0] || '',
+      objective2: oprForm.objectives[1] || '',
+      objective3: oprForm.objectives[2] || '',
+      activities: oprForm.activities.join('\n'),
+      summary: oprForm.summary.join('\n'),
+      reporterName: oprForm.reporterName,
+      reporterDesignation: oprForm.reporterDesignation,
+      pdfUrl: oprSheetUrl || '',
+      formData: { ...oprForm }
+    };
 
     if (oprApiUrl && oprApiUrl.startsWith('https://script.google.com')) {
       try {
@@ -694,55 +698,88 @@ export default function App() {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(oprForm)
+          body: JSON.stringify(newRecord)
         });
       } catch (err) {
-        console.error('OPR API Sync Error:', err);
+        console.error('Google Apps Script Sync Error:', err);
       }
     }
 
-    try {
-      const element = document.getElementById('opr-preview-a4');
-      if (!element) throw new Error('Elemen pratinjau OPR tidak ditemui.');
+    setOprArchiveList(prev => [newRecord, ...prev]);
+    setIsSavingOpr(false);
+    setOprSaveMessage('Berjaya! Laporan OPR telah disimpan ke Arkib.');
 
-      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
-      await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-
-      const dataUrl = await window.domtoimage.toJpeg(element, {
-        bgcolor: '#ffffff',
-        quality: 0.98
-      });
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 297);
-      pdf.save(`OPR_${(oprForm.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${oprForm.programDate || 'Tarikh'}.pdf`);
-
-      setOprSaveMessage('Berjaya! Laporan OPR (PDF) telah dimuat turun.');
-    } catch (err) {
-      console.error('Ralat Jana PDF:', err);
-      alert('Gagal menjana PDF. Sila guna butang Cetak OPR.');
-    } finally {
-      setIsGeneratingOprPdf(false);
-      setTimeout(() => setOprSaveMessage(''), 4000);
-    }
+    setTimeout(() => {
+      setOprTab('archive');
+      setOprSaveMessage('');
+    }, 1500);
   };
 
-  const loadOprFromArchive = (archiveItem) => {
-    setOprForm({
-      programName: archiveItem.programName,
-      programDate: archiveItem.programDate || '',
-      startTime: archiveItem.time.split('-')[0]?.trim() || '08:00 Pagi',
-      endTime: archiveItem.time.split('-')[1]?.trim() || '12:00 Tengah Hari',
-      location: archiveItem.location,
-      coordinator: archiveItem.coordinator,
-      objectives: [archiveItem.objective1, archiveItem.objective2, archiveItem.objective3].filter(Boolean),
-      activities: archiveItem.activities ? archiveItem.activities.split('\n') : [''],
-      summary: archiveItem.summary ? archiveItem.summary.split('\n') : [''],
-      images: ['', '', '', ''],
-      reporterName: archiveItem.reporterName,
-      reporterDesignation: archiveItem.reporterDesignation
-    });
+  const handleArchiveDownloadPng = async (item) => {
+    setOprForm(item.formData);
+    setOprTab('builder');
+
+    setTimeout(async () => {
+      try {
+        const element = document.getElementById('opr-preview-a4');
+        if (!element) return;
+
+        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
+
+        const dataUrl = await window.domtoimage.toPng(element, {
+          bgcolor: '#ffffff',
+          quality: 1.0
+        });
+
+        const link = document.createElement('a');
+        link.download = `OPR_${(item.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${item.programDate || 'Tarikh'}.png`;
+        link.href = dataUrl;
+        link.click();
+      } catch (err) {
+        console.error('PNG Error:', err);
+        alert('Gagal jana PNG. Sila guna butang Cetak.');
+      }
+    }, 400);
+  };
+
+  const handleArchiveDownloadPdf = async (item) => {
+    setOprForm(item.formData);
+    setOprTab('builder');
+
+    setTimeout(async () => {
+      try {
+        const element = document.getElementById('opr-preview-a4');
+        if (!element) return;
+
+        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
+        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+
+        const dataUrl = await window.domtoimage.toJpeg(element, {
+          bgcolor: '#ffffff',
+          quality: 0.98
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 297);
+        pdf.save(`OPR_${(item.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${item.programDate || 'Tarikh'}.pdf`);
+      } catch (err) {
+        console.error('PDF Error:', err);
+        alert('Gagal jana PDF. Sila guna butang Cetak.');
+      }
+    }, 400);
+  };
+
+  const handleArchivePrint = (item) => {
+    setOprForm(item.formData);
+    setOprTab('builder');
+    setTimeout(() => {
+      window.print();
+    }, 400);
+  };
+
+  const loadOprFromArchive = (item) => {
+    setOprForm(item.formData);
     setOprTab('builder');
   };
 
@@ -1242,7 +1279,7 @@ export default function App() {
                       </div>
                       <div>
                         <h2 className="text-lg font-bold">ONE PAGE REPORT (OPR) AUTOMATOR</h2>
-                        <p className="text-xs text-slate-400">Penjana laporan aktiviti sekolah berformat A4 dengan pratinjau langsung.</p>
+                        <p className="text-xs text-slate-400">Bina laporan, simpan ke arkib & urus cetakan / muat turun dari arkib sehenti.</p>
                       </div>
                     </div>
 
@@ -1530,33 +1567,19 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* BUTANG TINDAKAN */}
-                        <div className="flex flex-col sm:flex-row items-center gap-2 mt-4">
+                        {/* SINGLE BUTTON WORKFLOW */}
+                        <div className="pt-4">
                           <button 
-                            onClick={handleDownloadOprPng}
-                            disabled={isGeneratingOprPdf}
-                            className="flex-1 w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
+                            onClick={handleSaveToArchive}
+                            disabled={isSavingOpr}
+                            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-black py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs uppercase tracking-wider border border-emerald-400/30 cursor-pointer"
                           >
-                            <Download className={`w-4 h-4 ${isGeneratingOprPdf ? 'animate-bounce' : ''}`} />
-                            <span>{isGeneratingOprPdf ? 'Memproses...' : 'Muat Turun PNG'}</span>
+                            <Save className={`w-4 h-4 ${isSavingOpr ? 'animate-spin' : ''}`} />
+                            <span>{isSavingOpr ? 'Sedang Menyimpan Laporan...' : 'SIMPAN KE ARKIB & JANA OPR'}</span>
                           </button>
-
-                          <button 
-                            onClick={handleDownloadOprPdfDirect}
-                            disabled={isGeneratingOprPdf}
-                            className="flex-1 w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl shadow transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
-                          >
-                            <FileText className="w-4 h-4" />
-                            <span>{isGeneratingOprPdf ? 'Memproses...' : 'Muat Turun PDF'}</span>
-                          </button>
-
-                          <button 
-                            onClick={() => window.print()}
-                            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow transition flex items-center justify-center space-x-1.5 text-xs uppercase tracking-wider"
-                          >
-                            <Printer className="w-4 h-4" />
-                            <span>Cetak OPR</span>
-                          </button>
+                          <p className="text-[10px] text-slate-400 text-center mt-2">
+                            Laporan akan disimpan ke Peti Arkib & Google Sheets. Muat turun PNG/PDF dan cetakan boleh dilakukan di tab Peti Arkib.
+                          </p>
                         </div>
                       </div>
 
@@ -1717,7 +1740,7 @@ export default function App() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 border-slate-100">
                         <div>
                           <h3 className="font-bold text-slate-900 text-base">Peti Arkib & Sejarah OPR SK Sungai Bayan</h3>
-                          <p className="text-xs text-slate-500">Semua rekod laporan aktiviti yang telah dijana dan disimpan dalam pangkalan data Google Sheets.</p>
+                          <p className="text-xs text-slate-500">Pusat sehenti bagi menyemak, mencetak, dan memuat turun laporan OPR yang tersimpan.</p>
                         </div>
 
                         <div className="relative">
@@ -1736,33 +1759,71 @@ export default function App() {
                         <table className="w-full text-left text-xs border-collapse">
                           <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
                             <tr>
-                              <th className="p-3">Tarikh Program</th>
+                              <th className="p-3">Tarikh</th>
                               <th className="p-3">Nama Program / Aktiviti</th>
                               <th className="p-3">Lokasi</th>
                               <th className="p-3">Penyelaras</th>
-                              <th className="p-3">Penyedia Laporan</th>
-                              <th className="p-3 text-center">Tindakan</th>
+                              <th className="p-3">Penyedia</th>
+                              <th className="p-3 text-center">Tindakan & Muat Turun</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {oprArchiveList.filter(item => item.programName.toLowerCase().includes(oprArchiveSearch.toLowerCase())).map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50 transition">
-                                <td className="p-3 font-mono font-bold text-blue-700">{formatDateDMY(item.programDate)}</td>
-                                <td className="p-3 font-bold text-slate-900 max-w-xs">{item.programName}</td>
-                                <td className="p-3 text-slate-600">{item.location}</td>
-                                <td className="p-3 text-slate-700">{item.coordinator}</td>
-                                <td className="p-3 text-slate-700">{item.reporterName}</td>
-                                <td className="p-3 text-center">
-                                  <button 
-                                    onClick={() => loadOprFromArchive(item)}
-                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded text-[10px] border border-blue-200 transition inline-flex items-center gap-1"
-                                  >
-                                    <Eye className="w-3 h-3" />
-                                    <span>Buka & Jana</span>
-                                  </button>
+                            {oprArchiveList.length === 0 ? (
+                              <tr>
+                                <td colSpan="6" className="p-6 text-center text-slate-400 italic">
+                                  Tiada rekod OPR ditemui. Sila bina laporan baru di tab "Bina OPR Baru".
                                 </td>
                               </tr>
-                            ))}
+                            ) : (
+                              oprArchiveList.filter(item => item.programName.toLowerCase().includes(oprArchiveSearch.toLowerCase())).map((item, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50 transition">
+                                  <td className="p-3 font-mono font-bold text-blue-700">{formatDateDMY(item.programDate)}</td>
+                                  <td className="p-3 font-bold text-slate-900 max-w-xs">{item.programName}</td>
+                                  <td className="p-3 text-slate-600">{item.location}</td>
+                                  <td className="p-3 text-slate-700">{item.coordinator}</td>
+                                  <td className="p-3 text-slate-700">{item.reporterName}</td>
+                                  <td className="p-3 text-center">
+                                    <div className="flex items-center justify-center space-x-1.5">
+                                      <button 
+                                        onClick={() => loadOprFromArchive(item)}
+                                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2 py-1 rounded text-[10px] border border-blue-200 transition inline-flex items-center gap-1"
+                                        title="Buka semula dalam borang"
+                                      >
+                                        <Eye className="w-3 h-3" />
+                                        <span>Buka</span>
+                                      </button>
+
+                                      <button 
+                                        onClick={() => handleArchiveDownloadPng(item)}
+                                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded text-[10px] border border-emerald-200 transition inline-flex items-center gap-1"
+                                        title="Muat Turun PNG"
+                                      >
+                                        <Download className="w-3 h-3 text-emerald-600" />
+                                        <span>PNG</span>
+                                      </button>
+
+                                      <button 
+                                        onClick={() => handleArchiveDownloadPdf(item)}
+                                        className="bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded text-[10px] border border-purple-200 transition inline-flex items-center gap-1"
+                                        title="Muat Turun PDF"
+                                      >
+                                        <FileText className="w-3 h-3 text-purple-600" />
+                                        <span>PDF</span>
+                                      </button>
+
+                                      <button 
+                                        onClick={() => handleArchivePrint(item)}
+                                        className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-2 py-1 rounded text-[10px] transition inline-flex items-center gap-1"
+                                        title="Cetak A4"
+                                      >
+                                        <Printer className="w-3 h-3 text-amber-300" />
+                                        <span>Cetak</span>
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
                           </tbody>
                         </table>
                       </div>
