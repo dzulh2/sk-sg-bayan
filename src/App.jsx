@@ -101,7 +101,6 @@ const parseCSV = (csvText) => {
   return parsedStudents;
 };
 
-// Helper memuatkan skrip luaran (dom-to-image-more & jsPDF)
 const loadExternalScript = (src) => {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -283,11 +282,7 @@ export default function App() {
     };
 
     fetchLatestAttendance();
-
-    const intervalId = setInterval(() => {
-      fetchLatestAttendance();
-    }, 5 * 60 * 1000);
-
+    const intervalId = setInterval(fetchLatestAttendance, 5 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -305,9 +300,7 @@ export default function App() {
     } else {
       setFullscreenScreenView(0);
     }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    return () => { if (timer) clearInterval(timer); };
   }, [isFullscreenMode]);
 
   useEffect(() => {
@@ -328,11 +321,8 @@ export default function App() {
               },
               false
             );
-
             scanner.render(
-              (decodedText) => {
-                handleQrScanned(decodedText);
-              },
+              (decodedText) => handleQrScanned(decodedText),
               () => {}
             );
           } catch (err) {
@@ -357,7 +347,6 @@ export default function App() {
     const foundStudent = activeStudents.find(s => {
       const studentId = (s.id || '').trim().toLowerCase();
       const qrToken = (s.qr_token || '').trim().toLowerCase();
-      
       const studentNum = studentId.replace(/\D/g, '');
       const scannedNum = cleanCode.replace(/\D/g, '');
 
@@ -394,7 +383,6 @@ export default function App() {
           console.error("Cloud sync error on QR scan:", e);
         }
       }
-
     } else {
       setScanResult({
         success: false,
@@ -419,11 +407,7 @@ export default function App() {
     }
 
     if (!sheetUrl.includes('output=csv')) {
-      setSyncStatus({ 
-        loading: false, 
-        success: false, 
-        message: 'Pautan tidak sah! Pastikan pautan tamat dengan "output=csv".' 
-      });
+      setSyncStatus({ loading: false, success: false, message: 'Pautan tidak sah! Pastikan pautan tamat dengan "output=csv".' });
       return;
     }
 
@@ -442,19 +426,10 @@ export default function App() {
         setStudents(importedStudents);
         localStorage.setItem('sksb_students', JSON.stringify(importedStudents));
         localStorage.setItem('sksb_sheet_url', sheetUrl);
-
-        setSyncStatus({ 
-          loading: false, 
-          success: true, 
-          message: `Berjaya! ${importedStudents.length} rekod murid telah dikemaskini dari Google Sheets.` 
-        });
+        setSyncStatus({ loading: false, success: true, message: `Berjaya! ${importedStudents.length} rekod murid telah dikemaskini.` });
       }
     } catch (err) {
-      setSyncStatus({ 
-        loading: false, 
-        success: false, 
-        message: 'Ralat semasa sambungan. Pastikan helaian Google Sheets telah di-Publish to Web sebagai CSV.' 
-      });
+      setSyncStatus({ loading: false, success: false, message: 'Ralat semasa sambungan. Pastikan helaian Google Sheets telah di-Publish to Web sebagai CSV.' });
     }
   };
 
@@ -498,11 +473,10 @@ export default function App() {
   };
 
   const handleResetDailyAttendance = async () => {
-    if (window.confirm(`Adakah anda pasti untuk RESET semua rekod kehadiran kelas ${selectedClass} pada tarikh ${formatDateDMY(selectedDate)}?`)) {
+    if (window.confirm(`Adakah anda pasti untuk RESET semua rekod kelas ${selectedClass} pada ${formatDateDMY(selectedDate)}?`)) {
       const classStudentIds = activeStudents.filter(s => s.class === selectedClass).map(s => s.id);
-      
       setAttendance(prev => prev.filter(a => !(a.date === selectedDate && classStudentIds.includes(a.student_id))));
-      setSaveMessage(`Mereset rekod kelas ${selectedClass} pada peranti dan awan...`);
+      setSaveMessage(`Mereset rekod...`);
 
       if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
         try {
@@ -510,25 +484,19 @@ export default function App() {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: "reset",
-              date: selectedDate,
-              student_ids: classStudentIds
-            })
+            body: JSON.stringify({ action: "reset", date: selectedDate, student_ids: classStudentIds })
           });
-          setSaveMessage(`Rekod kehadiran kelas ${selectedClass} bagi ${formatDateDMY(selectedDate)} telah di-reset di semua peranti.`);
-        } catch (e) {
-          console.error("Cloud reset error:", e);
-        }
+          setSaveMessage(`Rekod kelas ${selectedClass} di-reset.`);
+        } catch (e) { console.error("Cloud reset error:", e); }
       }
       setTimeout(() => setSaveMessage(''), 4000);
     }
   };
 
   const handleClearAllSelectedDateAttendance = async () => {
-    if (window.confirm(`Reset SEMUA rekod sekolah bagi tarikh ${formatDateDMY(selectedDate)} di semua peranti?`)) {
+    if (window.confirm(`Reset SEMUA rekod sekolah bagi tarikh ${formatDateDMY(selectedDate)}?`)) {
       setAttendance(prev => prev.filter(a => a.date !== selectedDate));
-      setSaveMessage(`Mereset semua rekod bagi tarikh ${formatDateDMY(selectedDate)} pada peranti dan awan...`);
+      setSaveMessage(`Mereset semua rekod...`);
 
       if (ATTENDANCE_API_URL && ATTENDANCE_API_URL.startsWith('https://script.google.com')) {
         try {
@@ -536,15 +504,10 @@ export default function App() {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: "reset",
-              date: selectedDate
-            })
+            body: JSON.stringify({ action: "reset", date: selectedDate })
           });
-          setSaveMessage(`Semua rekod tarikh ${formatDateDMY(selectedDate)} telah dibersihkan di semua peranti.`);
-        } catch (e) {
-          console.error("Cloud clear error:", e);
-        }
+          setSaveMessage(`Semua rekod tarikh ${formatDateDMY(selectedDate)} dibersihkan.`);
+        } catch (e) { console.error("Cloud clear error:", e); }
       }
       setTimeout(() => setSaveMessage(''), 4000);
     }
@@ -552,7 +515,7 @@ export default function App() {
 
   const handleSaveAttendance = async () => {
     setIsSavingAttendance(true);
-    setSaveMessage('Sedang menyimpan rekod kehadiran ke pangkalan data awan...');
+    setSaveMessage('Sedang menyimpan rekod kehadiran...');
 
     const classStudents = activeStudents.filter(s => s.class === selectedClass);
     const recordsToSync = attendance.filter(a => 
@@ -567,9 +530,8 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: recordsToSync })
         });
-        setSaveMessage(`Berjaya! Rekod kehadiran kelas ${selectedClass} (${formatDateDMY(selectedDate)}) telah disimpan!`);
+        setSaveMessage(`Berjaya! Rekod kelas ${selectedClass} disimpan!`);
       } catch (err) {
-        console.error("Cloud save error:", err);
         setSaveMessage(`Disimpan secara tempatan. (Ralat sambungan awan)`);
       }
     } else {
@@ -577,9 +539,7 @@ export default function App() {
     }
 
     setIsSavingAttendance(false);
-    setTimeout(() => {
-      setSaveMessage('');
-    }, 5000);
+    setTimeout(() => setSaveMessage(''), 5000);
   };
 
   const getFilteredPrintStudents = () => {
@@ -600,7 +560,6 @@ export default function App() {
     if (deduplicatePrint) {
       const seenNames = new Set();
       const uniqueList = [];
-
       for (const student of rawList) {
         const normalizedName = student.name.trim().toLowerCase();
         if (!seenNames.has(normalizedName)) {
@@ -615,7 +574,6 @@ export default function App() {
   };
 
   const printFilteredStudents = getFilteredPrintStudents();
-
   const chunkArray = (array, chunkSize) => {
     const chunks = [];
     for (let i = 0; i < array.length; i += chunkSize) {
@@ -623,12 +581,10 @@ export default function App() {
     }
     return chunks;
   };
-
   const studentChunks = chunkArray(printFilteredStudents, 4);
 
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
-    
     const loadHtml2Pdf = () => new Promise((resolve, reject) => {
       if (window.html2pdf) return resolve(window.html2pdf);
       const script = document.createElement('script');
@@ -641,16 +597,14 @@ export default function App() {
     try {
       const html2pdf = await loadHtml2Pdf();
       const element = document.getElementById('printable-pdf-area');
-
       const opt = {
-        margin:       [8, 8, 8, 8],
-        filename:     `Kad_ID_SKSB_${printClassFilter}_${new Date().toISOString().split('T')[0]}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
+        margin: [8, 8, 8, 8],
+        filename: `Kad_ID_SKSB_${printClassFilter}_${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
       };
-
       await html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error('PDF Generation failed:', err);
@@ -660,7 +614,7 @@ export default function App() {
     }
   };
 
-  // OPR Dynamic Field Handlers
+  // OPR Handlers
   const handleOprArrayChange = (field, index, value) => {
     setOprForm(prev => {
       const list = [...prev[field]];
@@ -699,7 +653,6 @@ export default function App() {
     }
   };
 
-  // 1. Muat Turun PNG Menggunakan dom-to-image-more (Khas Elak Freeze & Ralat Image)
   const handleDownloadOprPng = async () => {
     setIsGeneratingOprPdf(true);
     setOprSaveMessage('Sedang menjana imej PNG OPR...');
@@ -712,7 +665,8 @@ export default function App() {
 
       const dataUrl = await window.domtoimage.toPng(element, {
         bgcolor: '#ffffff',
-        quality: 0.95
+        quality: 1.0,
+        style: { transform: 'scale(1)', transformOrigin: 'top left' }
       });
 
       const link = document.createElement('a');
@@ -730,7 +684,6 @@ export default function App() {
     }
   };
 
-  // 2. Muat Turun PDF Menggunakan dom-to-image-more + jsPDF (Ringan & Selamat)
   const handleDownloadOprPdfDirect = async () => {
     setIsGeneratingOprPdf(true);
     setOprSaveMessage('Sedang menjana laporan PDF...');
@@ -757,7 +710,7 @@ export default function App() {
 
       const dataUrl = await window.domtoimage.toJpeg(element, {
         bgcolor: '#ffffff',
-        quality: 0.92
+        quality: 0.98
       });
 
       const { jsPDF } = window.jspdf;
@@ -796,14 +749,11 @@ export default function App() {
   const getUniqueAttendanceForDate = (date) => {
     const rawList = attendance.filter(a => a.date === date);
     const map = new Map();
-    rawList.forEach(item => {
-      map.set(item.student_id, item);
-    });
+    rawList.forEach(item => { map.set(item.student_id, item); });
     return Array.from(map.values());
   };
 
   const filteredAttendanceByDate = getUniqueAttendanceForDate(selectedDate);
-
   const totalSchoolStudents = activeStudents.length;
   const totalSchoolHadir = filteredAttendanceByDate.filter(a => a.status === 'Hadir').length;
   const totalSchoolPercent = totalSchoolStudents > 0 ? Math.round((totalSchoolHadir / totalSchoolStudents) * 100) : 0;
@@ -814,63 +764,36 @@ export default function App() {
       : activeStudents.filter(s => s.class === className);
 
     const totalStudents = classStudents.length;
-
-    let totalHadir = 0;
-    let totalTidakHadir = 0;
-    let totalBersebab = 0;
-
-    let maleHadir = 0;
-    let maleTidakHadir = 0;
-    let maleBersebab = 0;
-    let maleTotal = 0;
-
-    let femaleHadir = 0;
-    let femaleTidakHadir = 0;
-    let femaleBersebab = 0;
-    let femaleTotal = 0;
-
-    const maleAbsentList = [];
-    const femaleAbsentList = [];
+    let totalHadir = 0; let totalTidakHadir = 0; let totalBersebab = 0;
+    let maleHadir = 0; let maleTotal = 0;
+    let femaleHadir = 0; let femaleTotal = 0;
+    const maleAbsentList = []; const femaleAbsentList = [];
 
     classStudents.forEach(st => {
       const att = filteredAttendanceByDate.find(a => a.student_id === st.id);
       const isMale = st.gender === 'L';
       const status = att ? att.status : 'Tidak Hadir';
 
-      if (isMale) maleTotal++;
-      else femaleTotal++;
+      if (isMale) maleTotal++; else femaleTotal++;
 
       if (status === 'Hadir') {
         totalHadir++;
-        if (isMale) maleHadir++;
-        else femaleHadir++;
+        if (isMale) maleHadir++; else femaleHadir++;
       } else if (status === 'Bersebab') {
         totalBersebab++;
-        if (isMale) {
-          maleBersebab++;
-          maleAbsentList.push({ ...st, reason: 'Bersebab' });
-        } else {
-          femaleBersebab++;
-          femaleAbsentList.push({ ...st, reason: 'Bersebab' });
-        }
+        if (isMale) maleAbsentList.push({ ...st, reason: 'Bersebab' });
+        else femaleAbsentList.push({ ...st, reason: 'Bersebab' });
       } else {
         totalTidakHadir++;
-        if (isMale) {
-          maleTidakHadir++;
-          maleAbsentList.push({ ...st, reason: 'Tanpa Sebab' });
-        } else {
-          femaleTidakHadir++;
-          femaleAbsentList.push({ ...st, reason: 'Tanpa Sebab' });
-        }
+        if (isMale) maleAbsentList.push({ ...st, reason: 'Tanpa Sebab' });
+        else femaleAbsentList.push({ ...st, reason: 'Tanpa Sebab' });
       }
     });
 
     const percent = totalStudents > 0 ? Math.round((totalHadir / totalStudents) * 100) : 0;
-
     return {
       totalStudents, totalHadir, totalTidakHadir, totalBersebab, percent,
-      maleTotal, maleHadir, maleTidakHadir, maleBersebab, maleAbsentList,
-      femaleTotal, femaleHadir, femaleTidakHadir, femaleBersebab, femaleAbsentList
+      maleTotal, maleHadir, maleAbsentList, femaleTotal, femaleHadir, femaleAbsentList
     };
   };
 
@@ -895,9 +818,7 @@ export default function App() {
     const classStudents = className === 'Semua Kelas' ? activeStudents : activeStudents.filter(s => s.class === className);
     if (classStudents.length === 0) return { percent: 0, totalHadir: 0, totalRecords: 0 };
 
-    let totalHadir = 0;
-    let totalRecords = 0;
-
+    let totalHadir = 0; let totalRecords = 0;
     classStudents.forEach(st => {
       const stRecords = monthlyAttendance.filter(a => a.student_id === st.id);
       stRecords.forEach(r => {
@@ -939,16 +860,11 @@ export default function App() {
 
     const totalWeight = classData.reduce((sum, item) => sum + (item.stats.totalStudents || 1), 0);
     let cumulativeAngle = 0;
-
-    const colors = [
-      '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', 
-      '#06b6d4', '#6366f1', '#84cc16', '#f97316', '#14b8a6'
-    ];
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16'];
 
     return classData.map((item, index) => {
       const portion = (item.stats.totalStudents || 1) / totalWeight;
       const angle = portion * 360;
-
       const startAngle = cumulativeAngle;
       const endAngle = cumulativeAngle + angle;
       cumulativeAngle += angle;
@@ -960,7 +876,6 @@ export default function App() {
 
       const largeArc = angle > 180 ? 1 : 0;
       const pathData = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
       const color = colors[index % colors.length];
       const isSelected = dashboardDetailClass === item.name;
 
@@ -992,35 +907,30 @@ export default function App() {
         }
 
         @media print {
-          body {
-            background: white !important;
-            margin: 0 !important;
-            padding: 0 !important;
+          body * {
+            visibility: hidden !important;
           }
 
-          header, nav, .no-print {
-            display: none !important;
+          #opr-preview-a4, #opr-preview-a4 * {
+            visibility: visible !important;
           }
 
-          /* Memastikan paparan cetak langsung OPR dipaparkan secara sempurna tanpa skrin putih */
           #opr-preview-a4 {
-            display: block !important;
-            position: fixed !important;
+            position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 210mm !important;
-            height: 297mm !important;
+            min-height: 297mm !important;
             margin: 0 !important;
-            padding: 10mm !important;
+            padding: 8mm !important;
             box-shadow: none !important;
             border: none !important;
-            background: white !important;
-            z-index: 999999 !important;
+            background: #ffffff !important;
             box-sizing: border-box !important;
           }
 
-          #opr-preview-a4 * {
-            visibility: visible !important;
+          .no-print {
+            display: none !important;
           }
 
           .print-area { 
@@ -1658,10 +1568,10 @@ export default function App() {
                           </span>
                         </div>
 
-                        <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-6 rounded-xl border border-slate-300 relative flex flex-col justify-between aspect-[1/1.414] overflow-hidden text-[10px] leading-tight font-sans">
-                          <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white p-2">
-                            <div>
-                              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-3 rounded-xl shadow-sm mb-2.5 flex items-center justify-between border-b-2 border-amber-400">
+                        <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-4 rounded-xl border border-slate-300 relative flex flex-col justify-between min-h-[842px] overflow-hidden text-[11px] font-sans">
+                          <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white p-3 space-y-3">
+                            <div className="space-y-3">
+                              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-3.5 rounded-xl shadow-sm flex items-center justify-between border-b-2 border-amber-400">
                                 <div className="flex items-center space-x-3">
                                   <img 
                                     src="/logo.png" 
@@ -1670,116 +1580,112 @@ export default function App() {
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                   />
                                   <div>
-                                    <h1 className="text-sm font-black text-amber-300 tracking-wider">SK SUNGAI BAYAN</h1>
+                                    <h1 className="text-base font-black text-amber-300 tracking-wider">SK SUNGAI BAYAN</h1>
                                     <h2 className="text-xs font-bold text-white tracking-wide">ONE PAGE REPORT (OPR)</h2>
-                                    <p className="text-[7.5px] text-blue-200 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
+                                    <p className="text-[8px] text-blue-200 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <span className="bg-amber-400 text-slate-950 text-[8px] font-black px-2 py-0.5 rounded-full uppercase">
+                                  <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase">
                                     Laporan Rasmi
                                   </span>
                                 </div>
                               </div>
 
-                              <table className="w-full border-collapse border border-slate-300 text-[9px] mb-2.5 shadow-sm rounded-lg overflow-hidden">
+                              <table className="w-full border-collapse border border-slate-300 text-[10px] shadow-sm rounded-lg overflow-hidden">
                                 <tbody>
                                   <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 w-32 uppercase text-blue-900">NAMA PROGRAM:</td>
-                                    <td className="px-2 py-1 font-black uppercase text-slate-900 bg-white">{oprForm.programName || '—'}</td>
+                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 w-36 uppercase text-blue-900">NAMA PROGRAM:</td>
+                                    <td className="px-3 py-1.5 font-black uppercase text-slate-900 bg-white leading-normal">{oprForm.programName || '—'}</td>
                                   </tr>
                                   <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">TARIKH PROGRAM:</td>
-                                    <td className="px-2 py-1 font-semibold text-slate-800 bg-white">{formatDateDMY(oprForm.programDate) || '—'}</td>
+                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">TARIKH PROGRAM:</td>
+                                    <td className="px-3 py-1.5 font-semibold text-slate-800 bg-white">{formatDateDMY(oprForm.programDate) || '—'}</td>
                                   </tr>
                                   <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">MASA PROGRAM:</td>
-                                    <td className="px-2 py-1 font-semibold text-slate-800 bg-white">{oprForm.startTime} - {oprForm.endTime}</td>
+                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">MASA PROGRAM:</td>
+                                    <td className="px-3 py-1.5 font-semibold text-slate-800 bg-white">{oprForm.startTime} - {oprForm.endTime}</td>
                                   </tr>
                                   <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">TEMPAT / LOKASI:</td>
-                                    <td className="px-2 py-1 font-bold uppercase text-slate-900 bg-white">{oprForm.location || '—'}</td>
+                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">TEMPAT / LOKASI:</td>
+                                    <td className="px-3 py-1.5 font-bold uppercase text-slate-900 bg-white">{oprForm.location || '—'}</td>
                                   </tr>
                                   <tr>
-                                    <td className="bg-blue-50 font-black px-2 py-1 border-r border-slate-200 uppercase text-blue-900">PENYELARAS PROGRAM:</td>
-                                    <td className="px-2 py-1 font-black uppercase text-indigo-900 bg-white">{oprForm.coordinator || '—'}</td>
+                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">PENYELARAS PROGRAM:</td>
+                                    <td className="px-3 py-1.5 font-black uppercase text-indigo-900 bg-white">{oprForm.coordinator || '—'}</td>
                                   </tr>
                                 </tbody>
                               </table>
 
-                              <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
-                                <div className="flex items-center space-x-1.5 border-b border-blue-200 pb-1 mb-1">
+                              <div className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200">
+                                <div className="flex items-center space-x-1.5 border-b border-blue-200 pb-1 mb-1.5">
                                   <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                                  <h3 className="font-black text-blue-950 text-[9.5px] uppercase tracking-wide">I. OBJEKTIF PROGRAM</h3>
+                                  <h3 className="font-black text-blue-950 text-[10px] uppercase tracking-wide">I. OBJEKTIF PROGRAM</h3>
                                 </div>
-                                <ol className="list-decimal list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
+                                <ol className="list-decimal list-inside text-[10px] text-slate-800 space-y-1 text-justify pl-1 leading-normal">
                                   {oprForm.objectives.filter(Boolean).length === 0 ? (
                                     <li className="text-slate-400 italic font-normal">Tiada objektif dimasukkan...</li>
                                   ) : (
                                     oprForm.objectives.filter(Boolean).map((obj, i) => (
-                                      <li key={i} className="leading-tight"><span className="font-semibold text-slate-900">{obj}</span></li>
+                                      <li key={i} className="break-words"><span className="font-semibold text-slate-900">{obj}</span></li>
                                     ))
                                   )}
                                 </ol>
                               </div>
 
-                              <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
-                                <div className="flex items-center space-x-1.5 border-b border-emerald-200 pb-1 mb-1">
+                              <div className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200">
+                                <div className="flex items-center space-x-1.5 border-b border-emerald-200 pb-1 mb-1.5">
                                   <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                                  <h3 className="font-black text-emerald-950 text-[9.5px] uppercase tracking-wide">II. RINGKASAN AKTIVITI UTAMA</h3>
+                                  <h3 className="font-black text-emerald-950 text-[10px] uppercase tracking-wide">II. RINGKASAN AKTIVITI UTAMA</h3>
                                 </div>
-                                <ul className="list-disc list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
+                                <ul className="list-disc list-inside text-[10px] text-slate-800 space-y-1 text-justify pl-1 leading-normal">
                                   {oprForm.activities.filter(Boolean).length === 0 ? (
                                     <li className="text-slate-400 italic font-normal">Tiada aktiviti dimasukkan...</li>
                                   ) : (
                                     oprForm.activities.filter(Boolean).map((act, i) => (
-                                      <li key={i} className="leading-tight">{act}</li>
+                                      <li key={i} className="break-words">{act}</li>
                                     ))
                                   )}
                                 </ul>
                               </div>
 
-                              <div className="mb-2.5 bg-slate-50/80 p-2 rounded-lg border border-slate-200">
-                                <div className="flex items-center space-x-1.5 border-b border-amber-200 pb-1 mb-1">
+                              <div className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200">
+                                <div className="flex items-center space-x-1.5 border-b border-amber-200 pb-1 mb-1.5">
                                   <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                                  <h3 className="font-black text-amber-950 text-[9.5px] uppercase tracking-wide">III. RUMUSAN PROGRAM</h3>
+                                  <h3 className="font-black text-amber-950 text-[10px] uppercase tracking-wide">III. RUMUSAN PROGRAM</h3>
                                 </div>
-                                <ul className="list-disc list-inside text-[9px] text-slate-800 space-y-0.5 text-justify pl-1">
+                                <ul className="list-disc list-inside text-[10px] text-slate-800 space-y-1 text-justify pl-1 leading-normal">
                                   {oprForm.summary.filter(Boolean).length === 0 ? (
                                     <li className="text-slate-400 italic font-normal">Tiada rumusan dimasukkan...</li>
                                   ) : (
                                     oprForm.summary.filter(Boolean).map((sum, i) => (
-                                      <li key={i} className="leading-tight">{sum}</li>
+                                      <li key={i} className="break-words">{sum}</li>
                                     ))
                                   )}
                                 </ul>
                               </div>
 
-                              <div className="mb-2">
-                                <div className="flex items-center space-x-1.5 border-b border-indigo-200 pb-1 mb-1.5">
+                              <div>
+                                <div className="flex items-center space-x-1.5 border-b border-indigo-200 pb-1 mb-2">
                                   <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                                  <h3 className="font-black text-indigo-950 text-[9.5px] uppercase tracking-wide">IV. LAMPIRAN FOTOGRAFI PROGRAM</h3>
+                                  <h3 className="font-black text-indigo-950 text-[10px] uppercase tracking-wide">IV. LAMPIRAN FOTOGRAFI PROGRAM</h3>
                                 </div>
 
                                 {validUploadedImages.length === 0 ? (
-                                  <div className="border border-dashed border-slate-300 p-3 text-center text-slate-400 rounded text-[9px] italic bg-slate-50">
+                                  <div className="border border-dashed border-slate-300 p-3 text-center text-slate-400 rounded text-[9.5px] italic bg-slate-50">
                                     Sila muat naik sekurang-kurangnya 2 keping gambar di sebelah.
                                   </div>
                                 ) : (
-                                  <div className={`grid gap-2 border border-slate-300 p-1.5 bg-slate-100 rounded-lg ${
-                                    validUploadedImages.length <= 2 ? 'grid-cols-2' : 'grid-cols-2'
-                                  }`}>
+                                  <div className="grid grid-cols-2 gap-2 border border-slate-200 p-2 bg-slate-50 rounded-lg">
                                     {validUploadedImages.map((imgUrl, i) => (
                                       <div 
                                         key={i} 
-                                        className={`bg-slate-900 border border-slate-300 overflow-hidden rounded-md flex items-center justify-center p-0.5 shadow-sm ${
-                                          validUploadedImages.length <= 2 ? 'h-36' : 'h-24'
-                                        }`}
+                                        className="bg-slate-900 border border-slate-300 overflow-hidden rounded-md h-32 flex items-center justify-center p-0.5 shadow-sm"
                                       >
                                         <img 
                                           src={imgUrl} 
                                           alt={`Foto ${i + 1}`} 
-                                          className="w-full h-full object-contain" 
+                                          className="w-full h-full object-cover rounded" 
                                         />
                                       </div>
                                     ))}
@@ -1788,16 +1694,16 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="pt-2 border-t-2 border-slate-800 flex items-end justify-between bg-gradient-to-r from-slate-50 via-white to-blue-50 p-2 rounded-lg border border-slate-200">
+                            <div className="pt-3 border-t-2 border-slate-800 flex items-end justify-between bg-gradient-to-r from-slate-50 via-white to-blue-50 p-2.5 rounded-lg border border-slate-200 mt-2">
                               <div>
-                                <p className="text-[8.5px] font-black text-blue-900 uppercase tracking-wider">DISEDIAKAN OLEH:</p>
-                                <div className="h-5 border-b border-dashed border-slate-400 w-36 my-1"></div>
-                                <p className="font-black text-slate-900 uppercase text-[9.5px]">{oprForm.reporterName || '—'}</p>
-                                <p className="text-[8.5px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation || '—'}</p>
+                                <p className="text-[9px] font-black text-blue-900 uppercase tracking-wider">DISEDIAKAN OLEH:</p>
+                                <div className="h-6 border-b border-dashed border-slate-400 w-40 my-1"></div>
+                                <p className="font-black text-slate-900 uppercase text-[10px]">{oprForm.reporterName || '—'}</p>
+                                <p className="text-[9px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation || '—'}</p>
                               </div>
 
                               <div className="text-right">
-                                <p className="text-[8px] font-mono text-slate-400 font-bold">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
+                                <p className="text-[8.5px] font-mono text-slate-500 font-bold">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
                               </div>
                             </div>
                           </div>
@@ -2408,7 +2314,6 @@ export default function App() {
                               
                               return (
                                 <div key={s.id} className="card-wrapper">
-                                  {/* FRONT OF THE ID CARD */}
                                   <div className="id-card bg-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between relative">
                                     <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white px-3 py-1.5 flex items-center justify-between border-b-2 border-amber-400">
                                       <div className="flex items-center space-x-2">
@@ -2477,7 +2382,6 @@ export default function App() {
                                     </div>
                                   </div>
 
-                                  {/* BACK OF THE ID CARD */}
                                   <div className="id-card-back bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white rounded-xl border-2 border-slate-900 shadow-sm overflow-hidden flex flex-col justify-between p-2.5 relative">
                                     <div className="text-center border-b border-white/10 pb-1">
                                       <img 
