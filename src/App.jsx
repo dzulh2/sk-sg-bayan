@@ -3,14 +3,12 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Download, FileText, Plus, Trash2, Eye, History, Minus
+  Maximize2, Minimize2, RotateCcw, Clock, Download
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQfGF2_35Fp9ySTksLZmsE8azknMV1IhkqTHXYji6JMvCEHA4L6rTQhMjvSsL_XtkP8JpIDU1KKOJ7J/pub?output=csv"; 
 const ATTENDANCE_API_URL = "https://script.google.com/macros/s/AKfycbyM_nTKRqH36YZCv0qKxRA8EPWB1_rdUk2jn2mEgCoY8p8AJDlQc8L7v8N8XU2CrYXi/exec"; 
-const DEFAULT_OPR_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKo-4VcOm_RzJxqe6YhGuMvrHf7H8rpsYdTZZdwf16yALXY1MMNaHVq7ZW05sSG_beOug2P8NT0Ta6/pub?gid=0&single=true&output=csv";
-const OPR_API_URL = "https://script.google.com/macros/s/AKfycbz4_eMwCM5K45eBtzqswYho9d-rHTsyBs1uNZ8gDVyynO19ErXnvnkRxY4G0rP8AfGa/exec"; 
 
 const INITIAL_STUDENTS = [
   { id: 'SB20260001', name: 'NUR AINA BINTI ZULKIFLI', year: '5', class: '5 Bestari', gender: 'P', status: 'Active', guardian: 'm-12345678@moe-dl.edu.my', qr_token: 'SB20260001' },
@@ -22,21 +20,6 @@ const INITIAL_STUDENTS = [
 
 const INITIAL_ATTENDANCE = [];
 
-const INITIAL_OPR_FORM = {
-  programName: '',
-  programDate: '',
-  startTime: '08:00 Pagi',
-  endTime: '12:00 Tengah Hari',
-  location: '',
-  coordinator: '',
-  objectives: [''],
-  activities: [''],
-  summary: [''],
-  images: ['', '', '', ''],
-  reporterName: '',
-  reporterDesignation: ''
-};
-
 const formatDateDMY = (dateStr) => {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
@@ -45,13 +28,6 @@ const formatDateDMY = (dateStr) => {
   }
   return dateStr;
 };
-
-const timeSlots = [
-  '07:00 Pagi', '07:30 Pagi', '08:00 Pagi', '08:30 Pagi', '09:00 Pagi', '09:30 Pagi',
-  '10:00 Pagi', '10:30 Pagi', '11:00 Pagi', '11:30 Pagi', '12:00 Tengah Hari', '12:30 Tengah Hari',
-  '01:00 Petang', '01:30 Petang', '02:00 Petang', '02:30 Petang', '03:00 Petang', '03:30 Petang',
-  '04:00 Petang', '04:30 Petang', '05:00 Petang', '05:30 Petang', '06:00 Petang', '08:00 Malam', '09:00 Malam'
-];
 
 const parseCSV = (csvText) => {
   if (!csvText) return [];
@@ -101,17 +77,6 @@ const parseCSV = (csvText) => {
   return parsedStudents;
 };
 
-const loadExternalScript = (src) => {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = resolve;
-    script.onerror = reject;
-    document.body.appendChild(script);
-  });
-};
-
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -120,8 +85,6 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
 
   const [sheetUrl, setSheetUrl] = useState(() => localStorage.getItem('sksb_sheet_url') || DEFAULT_SHEET_URL);
-  const [oprSheetUrl, setOprSheetUrl] = useState(() => localStorage.getItem('sksb_opr_sheet_url') || DEFAULT_OPR_SHEET_URL);
-  const [oprApiUrl, setOprApiUrl] = useState(() => localStorage.getItem('sksb_opr_api_url') || OPR_API_URL);
 
   const [students, setStudents] = useState(() => {
     try {
@@ -140,21 +103,6 @@ export default function App() {
       return INITIAL_ATTENDANCE;
     }
   });
-
-  // OPR States
-  const [oprForm, setOprForm] = useState(INITIAL_OPR_FORM);
-  const [oprTab, setOprTab] = useState('builder');
-  const [oprArchiveList, setOprArchiveList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('sksb_opr_archive_local');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-  const [isSavingOpr, setIsSavingOpr] = useState(false);
-  const [oprArchiveSearch, setOprArchiveSearch] = useState('');
-  const [oprSaveMessage, setOprSaveMessage] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -217,61 +165,6 @@ export default function App() {
         .catch(err => console.error("Auto sync student error:", err));
     }
   }, [sheetUrl]);
-
-  useEffect(() => {
-    if (oprSheetUrl && oprSheetUrl.includes('output=csv')) {
-      fetch(oprSheetUrl)
-        .then(res => res.text())
-        .then(csvText => {
-          const lines = csvText.split('\n').map(l => l.trim()).filter(l => l !== '');
-          if (lines.length > 1) {
-            const list = [];
-            for (let i = 1; i < lines.length; i++) {
-              const cols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^"|"$/g, ''));
-              if (cols.length >= 6) {
-                list.push({
-                  id: `OPR-${i}`,
-                  timestamp: cols[0] || '',
-                  programName: cols[1] || 'Tanpa Tajuk',
-                  programDate: cols[2] || '',
-                  time: cols[3] || '',
-                  location: cols[4] || '',
-                  coordinator: cols[5] || '',
-                  objective1: cols[6] || '',
-                  objective2: cols[7] || '',
-                  objective3: cols[8] || '',
-                  activities: cols[9] || '',
-                  summary: cols[10] || '',
-                  reporterName: cols[11] || '',
-                  reporterDesignation: cols[12] || '',
-                  pdfUrl: cols[13] || '',
-                  formData: {
-                    programName: cols[1] || 'Tanpa Tajuk',
-                    programDate: cols[2] || '',
-                    startTime: cols[3]?.split('-')[0]?.trim() || '08:00 Pagi',
-                    endTime: cols[3]?.split('-')[1]?.trim() || '12:00 Tengah Hari',
-                    location: cols[4] || '',
-                    coordinator: cols[5] || '',
-                    objectives: [cols[6], cols[7], cols[8]].filter(Boolean),
-                    activities: cols[9] ? cols[9].split('\n') : [''],
-                    summary: cols[10] ? cols[10].split('\n') : [''],
-                    images: ['', '', '', ''],
-                    reporterName: cols[11] || '',
-                    reporterDesignation: cols[12] || ''
-                  }
-                });
-              }
-            }
-            setOprArchiveList(list);
-          }
-        })
-        .catch(err => console.error("OPR Archive Fetch Error:", err));
-    }
-  }, [oprSheetUrl]);
-
-  useEffect(() => {
-    localStorage.setItem('sksb_opr_archive_local', JSON.stringify(oprArchiveList));
-  }, [oprArchiveList]);
 
   useEffect(() => {
     const fetchLatestAttendance = async () => {
@@ -623,166 +516,6 @@ export default function App() {
     }
   };
 
-  // OPR Dynamic Field Handlers
-  const handleOprArrayChange = (field, index, value) => {
-    setOprForm(prev => {
-      const list = [...prev[field]];
-      list[index] = value;
-      return { ...prev, [field]: list };
-    });
-  };
-
-  const addOprArrayItem = (field) => {
-    setOprForm(prev => ({
-      ...prev,
-      [field]: [...prev[field], '']
-    }));
-  };
-
-  const removeOprArrayItem = (field, index) => {
-    setOprForm(prev => {
-      if (prev[field].length <= 1) return prev;
-      const list = prev[field].filter((_, idx) => idx !== index);
-      return { ...prev, [field]: list };
-    });
-  };
-
-  const handleOprImageUpload = (index, e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setOprForm(prev => {
-          const imgs = [...prev.images];
-          imgs[index] = reader.result;
-          return { ...prev, images: imgs };
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // 1-BUTTON WORKFLOW: SIMPAN KE ARKIB & GOOGLE SHEETS
-  const handleSaveToArchive = async () => {
-    if (!oprForm.programName.trim()) {
-      alert('Sila masukkan Nama Program / Aktiviti terlebih dahulu.');
-      return;
-    }
-
-    setIsSavingOpr(true);
-    setOprSaveMessage('Sedang menyimpan laporan OPR ke dalam Peti Arkib & Google Sheets...');
-
-    const newRecordId = `OPR-${Date.now()}`;
-    const newRecord = {
-      id: newRecordId,
-      timestamp: new Date().toLocaleString('ms-MY'),
-      programName: oprForm.programName,
-      programDate: oprForm.programDate,
-      time: `${oprForm.startTime} - ${oprForm.endTime}`,
-      location: oprForm.location,
-      coordinator: oprForm.coordinator,
-      objective1: oprForm.objectives[0] || '',
-      objective2: oprForm.objectives[1] || '',
-      objective3: oprForm.objectives[2] || '',
-      activities: oprForm.activities.join('\n'),
-      summary: oprForm.summary.join('\n'),
-      reporterName: oprForm.reporterName,
-      reporterDesignation: oprForm.reporterDesignation,
-      pdfUrl: oprSheetUrl || '',
-      formData: { ...oprForm }
-    };
-
-    if (oprApiUrl && oprApiUrl.startsWith('https://script.google.com')) {
-      try {
-        await fetch(oprApiUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newRecord)
-        });
-      } catch (err) {
-        console.error('Google Apps Script Sync Error:', err);
-      }
-    }
-
-    setOprArchiveList(prev => [newRecord, ...prev]);
-    setIsSavingOpr(false);
-    setOprSaveMessage('Berjaya! Laporan OPR telah disimpan ke Arkib.');
-
-    setTimeout(() => {
-      setOprTab('archive');
-      setOprSaveMessage('');
-    }, 1500);
-  };
-
-  const handleArchiveDownloadPng = async (item) => {
-    setOprForm(item.formData);
-    setOprTab('builder');
-
-    setTimeout(async () => {
-      try {
-        const element = document.getElementById('opr-preview-a4');
-        if (!element) return;
-
-        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
-
-        const dataUrl = await window.domtoimage.toPng(element, {
-          bgcolor: '#ffffff',
-          quality: 1.0
-        });
-
-        const link = document.createElement('a');
-        link.download = `OPR_${(item.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${item.programDate || 'Tarikh'}.png`;
-        link.href = dataUrl;
-        link.click();
-      } catch (err) {
-        console.error('PNG Error:', err);
-        alert('Gagal jana PNG. Sila guna butang Cetak.');
-      }
-    }, 400);
-  };
-
-  const handleArchiveDownloadPdf = async (item) => {
-    setOprForm(item.formData);
-    setOprTab('builder');
-
-    setTimeout(async () => {
-      try {
-        const element = document.getElementById('opr-preview-a4');
-        if (!element) return;
-
-        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/dom-to-image-more/3.3.1/dom-to-image-more.min.js');
-        await loadExternalScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-
-        const dataUrl = await window.domtoimage.toJpeg(element, {
-          bgcolor: '#ffffff',
-          quality: 0.98
-        });
-
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        pdf.addImage(dataUrl, 'JPEG', 0, 0, 210, 297);
-        pdf.save(`OPR_${(item.programName || 'Laporan').replace(/[^a-zA-Z0-9]/g, '_')}_${item.programDate || 'Tarikh'}.pdf`);
-      } catch (err) {
-        console.error('PDF Error:', err);
-        alert('Gagal jana PDF. Sila guna butang Cetak.');
-      }
-    }, 400);
-  };
-
-  const handleArchivePrint = (item) => {
-    setOprForm(item.formData);
-    setOprTab('builder');
-    setTimeout(() => {
-      window.print();
-    }, 400);
-  };
-
-  const loadOprFromArchive = (item) => {
-    setOprForm(item.formData);
-    setOprTab('builder');
-  };
-
   const getUniqueAttendanceForDate = (date) => {
     const rawList = attendance.filter(a => a.date === date);
     const map = new Map();
@@ -933,8 +666,6 @@ export default function App() {
     });
   };
 
-  const validUploadedImages = oprForm.images.filter(img => img !== '' && img !== null);
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <style>{`
@@ -946,24 +677,6 @@ export default function App() {
         @media print {
           body * {
             visibility: hidden !important;
-          }
-
-          #opr-preview-a4, #opr-preview-a4 * {
-            visibility: visible !important;
-          }
-
-          #opr-preview-a4 {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
-            margin: 0 !important;
-            padding: 8mm !important;
-            box-shadow: none !important;
-            border: none !important;
-            background: #ffffff !important;
-            box-sizing: border-box !important;
           }
 
           .no-print {
@@ -1227,14 +940,6 @@ export default function App() {
               </button>
 
               <button 
-                onClick={() => setActiveTab('opr')}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'opr' ? 'bg-blue-600 text-white font-bold shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Laporan OPR</span>
-              </button>
-
-              <button 
                 onClick={() => setActiveTab('print')}
                 className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'print' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'}`}
               >
@@ -1270,568 +975,6 @@ export default function App() {
             </nav>
 
             <main className="flex-1 p-4 md:p-5 overflow-y-auto max-w-7xl">
-              {activeTab === 'opr' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between bg-slate-900 text-white p-4 rounded-xl shadow-md no-print">
-                    <div className="flex items-center space-x-3">
-                      <div className="bg-blue-600/30 p-2 rounded-xl border border-blue-400/40">
-                        <FileText className="w-6 h-6 text-blue-300" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold">ONE PAGE REPORT (OPR) AUTOMATOR</h2>
-                        <p className="text-xs text-slate-400">Bina laporan, simpan ke arkib & urus cetakan / muat turun dari arkib sehenti.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => {
-                          setOprForm(INITIAL_OPR_FORM);
-                          setOprTab('builder');
-                        }}
-                        className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${oprTab === 'builder' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Bina OPR Baru</span>
-                      </button>
-                      <button 
-                        onClick={() => setOprTab('archive')}
-                        className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition ${oprTab === 'archive' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
-                      >
-                        <History className="w-3.5 h-3.5" />
-                        <span>Peti Arkib ({oprArchiveList.length})</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {oprSaveMessage && (
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 shadow-sm no-print">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                      <span>{oprSaveMessage}</span>
-                    </div>
-                  )}
-
-                  {oprTab === 'builder' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                      {/* LEFT: FORM BUILDER */}
-                      <div className="lg:col-span-6 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-4 no-print shadow-xl">
-                        <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2">
-                          I. MAKLUMAT UMUM PROGRAM
-                        </h3>
-
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Program / Aktiviti *</label>
-                            <input 
-                              type="text" 
-                              value={oprForm.programName}
-                              onChange={e => setOprForm({ ...oprForm, programName: e.target.value })}
-                              placeholder="Contoh: Kejohanan Sukan Tahunan SKSB"
-                              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Tarikh Program *</label>
-                              <input 
-                                type="date" 
-                                value={oprForm.programDate}
-                                onChange={e => setOprForm({ ...oprForm, programDate: e.target.value })}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none cursor-pointer"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Masa Mula *</label>
-                              <select 
-                                value={oprForm.startTime}
-                                onChange={e => setOprForm({ ...oprForm, startTime: e.target.value })}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none cursor-pointer"
-                              >
-                                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Masa Tamat *</label>
-                              <select 
-                                value={oprForm.endTime}
-                                onChange={e => setOprForm({ ...oprForm, endTime: e.target.value })}
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none cursor-pointer"
-                              >
-                                {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Tempat / Lokasi *</label>
-                              <input 
-                                type="text" 
-                                value={oprForm.location}
-                                onChange={e => setOprForm({ ...oprForm, location: e.target.value })}
-                                placeholder="Contoh: Dewan Seri Bayan"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Penyelaras Program *</label>
-                              <input 
-                                type="text" 
-                                value={oprForm.coordinator}
-                                onChange={e => setOprForm({ ...oprForm, coordinator: e.target.value })}
-                                placeholder="Nama penyelaras utama"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* OBJEKTIF PROGRAM */}
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2">
-                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">II. OBJEKTIF PROGRAM</h3>
-                            <button 
-                              type="button" 
-                              onClick={() => addOprArrayItem('objectives')}
-                              className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 hover:bg-emerald-900 px-2 py-0.5 rounded border border-emerald-800 transition flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" /> Tambah Poin
-                            </button>
-                          </div>
-
-                          <div className="space-y-2">
-                            {oprForm.objectives.map((obj, idx) => (
-                              <div key={idx} className="flex gap-1.5 items-center">
-                                <span className="text-xs font-bold text-slate-500 w-4">{idx + 1}.</span>
-                                <input 
-                                  type="text"
-                                  value={obj}
-                                  onChange={e => handleOprArrayChange('objectives', idx, e.target.value)}
-                                  placeholder={`Objektif ${idx + 1}`}
-                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                                />
-                                {oprForm.objectives.length > 1 && (
-                                  <button 
-                                    type="button" 
-                                    onClick={() => removeOprArrayItem('objectives', idx)}
-                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px]"
-                                  >
-                                    <Minus className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* RINGKASAN AKTIVITI UTAMA */}
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2">
-                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">III. RINGKASAN AKTIVITI UTAMA</h3>
-                            <button 
-                              type="button" 
-                              onClick={() => addOprArrayItem('activities')}
-                              className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 hover:bg-emerald-900 px-2 py-0.5 rounded border border-emerald-800 transition flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" /> Tambah Poin
-                            </button>
-                          </div>
-
-                          <div className="space-y-2">
-                            {oprForm.activities.map((act, idx) => (
-                              <div key={idx} className="flex gap-1.5 items-start">
-                                <span className="text-xs font-bold text-slate-500 pt-1 w-4">•</span>
-                                <textarea 
-                                  rows="2"
-                                  value={act}
-                                  onChange={e => handleOprArrayChange('activities', idx, e.target.value)}
-                                  placeholder={`Pengisian aktiviti utama ${idx + 1}`}
-                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
-                                />
-                                {oprForm.activities.length > 1 && (
-                                  <button 
-                                    type="button" 
-                                    onClick={() => removeOprArrayItem('activities', idx)}
-                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px] mt-1"
-                                  >
-                                    <Minus className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* RUMUSAN & PENILAIAN */}
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-2">
-                            <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider">IV. RUMUSAN & PENILAIAN</h3>
-                            <button 
-                              type="button" 
-                              onClick={() => addOprArrayItem('summary')}
-                              className="text-[10px] font-bold text-emerald-400 bg-emerald-950/50 hover:bg-emerald-900 px-2 py-0.5 rounded border border-emerald-800 transition flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" /> Tambah Poin
-                            </button>
-                          </div>
-
-                          <div className="space-y-2">
-                            {oprForm.summary.map((sum, idx) => (
-                              <div key={idx} className="flex gap-1.5 items-start">
-                                <span className="text-xs font-bold text-slate-500 pt-1 w-4">•</span>
-                                <textarea 
-                                  rows="2"
-                                  value={sum}
-                                  onChange={e => handleOprArrayChange('summary', idx, e.target.value)}
-                                  placeholder={`Rumusan / impak ${idx + 1}`}
-                                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white outline-none focus:border-blue-500"
-                                />
-                                {oprForm.summary.length > 1 && (
-                                  <button 
-                                    type="button" 
-                                    onClick={() => removeOprArrayItem('summary', idx)}
-                                    className="p-1.5 text-red-400 hover:bg-red-950/50 rounded transition flex items-center gap-0.5 text-[10px] mt-1"
-                                  >
-                                    <Minus className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* LAMPIRAN GAMBAR */}
-                        <div className="pt-2">
-                          <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-1 mb-2">
-                            V. LAMPIRAN GAMBAR PROGRAM (2 - 4 FOTO)
-                          </h3>
-                          <div className="grid grid-cols-2 gap-2">
-                            {[0, 1, 2, 3].map(imgIdx => (
-                              <div key={imgIdx} className="bg-slate-950 p-2 rounded-lg border border-slate-800 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <label className="block text-[10px] font-bold text-slate-400">Gambar {imgIdx + 1}</label>
-                                  {oprForm.images[imgIdx] && (
-                                    <button 
-                                      type="button" 
-                                      onClick={() => {
-                                        setOprForm(prev => {
-                                          const imgs = [...prev.images];
-                                          imgs[imgIdx] = '';
-                                          return { ...prev, images: imgs };
-                                        });
-                                      }}
-                                      className="text-[9px] text-red-400 hover:underline"
-                                    >
-                                      Kosongkan
-                                    </button>
-                                  )}
-                                </div>
-                                <input 
-                                  type="file" 
-                                  accept="image/*"
-                                  onChange={e => handleOprImageUpload(imgIdx, e)}
-                                  className="block w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* PENYEDIA LAPORAN */}
-                        <div className="pt-2 space-y-2">
-                          <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-1">
-                            VI. PENYEDIA LAPORAN
-                          </h3>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Penuh Penyedia *</label>
-                              <input 
-                                type="text" 
-                                value={oprForm.reporterName}
-                                onChange={e => setOprForm({ ...oprForm, reporterName: e.target.value })}
-                                placeholder="Contoh: Encik Khairul Azwan"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">Jawatan Penyedia *</label>
-                              <input 
-                                type="text" 
-                                value={oprForm.reporterDesignation}
-                                onChange={e => setOprForm({ ...oprForm, reporterDesignation: e.target.value })}
-                                placeholder="Contoh: Setiausaha Sukan"
-                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-blue-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* SINGLE BUTTON WORKFLOW */}
-                        <div className="pt-4">
-                          <button 
-                            onClick={handleSaveToArchive}
-                            disabled={isSavingOpr}
-                            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-black py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-xs uppercase tracking-wider border border-emerald-400/30 cursor-pointer"
-                          >
-                            <Save className={`w-4 h-4 ${isSavingOpr ? 'animate-spin' : ''}`} />
-                            <span>{isSavingOpr ? 'Sedang Menyimpan Laporan...' : 'SIMPAN KE ARKIB & JANA OPR'}</span>
-                          </button>
-                          <p className="text-[10px] text-slate-400 text-center mt-2">
-                            Laporan akan disimpan ke Peti Arkib & Google Sheets. Muat turun PNG/PDF dan cetakan boleh dilakukan di tab Peti Arkib.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* RIGHT: LIVE A4 PREVIEW */}
-                      <div className="lg:col-span-6 flex flex-col items-center justify-start no-print">
-                        <div className="mb-2 text-center">
-                          <span className="text-xs font-bold bg-blue-100 text-blue-800 px-3 py-1 rounded-full border border-blue-300">
-                            Pratinjau Langsung Format OPR A4
-                          </span>
-                        </div>
-
-                        <div className="w-full max-w-[595px] bg-white text-slate-900 shadow-2xl p-4 rounded-xl border border-slate-300 relative flex flex-col justify-between min-h-[842px] overflow-hidden text-[11px] font-sans">
-                          <div id="opr-preview-a4" className="w-full h-full flex flex-col justify-between bg-white p-3 space-y-3">
-                            <div className="space-y-3">
-                              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-3.5 rounded-xl shadow-sm flex items-center justify-between border-b-2 border-amber-400">
-                                <div className="flex items-center space-x-3">
-                                  <img 
-                                    src="/logo.png" 
-                                    alt="Logo SK Sungai Bayan" 
-                                    className="w-10 h-10 object-contain bg-white/10 p-1 rounded-lg border border-white/20"
-                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                  />
-                                  <div>
-                                    <h1 className="text-base font-black text-amber-300 tracking-wider">SK SUNGAI BAYAN</h1>
-                                    <h2 className="text-xs font-bold text-white tracking-wide">ONE PAGE REPORT (OPR)</h2>
-                                    <p className="text-[8px] text-blue-200 font-medium">Laporan Aktiviti Peringkat Sekolah (Berasaskan Cloud)</p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                                    Laporan Rasmi
-                                  </span>
-                                </div>
-                              </div>
-
-                              <table className="w-full border-collapse border border-slate-300 text-[10px] shadow-sm rounded-lg overflow-hidden">
-                                <tbody>
-                                  <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 w-36 uppercase text-blue-900">NAMA PROGRAM:</td>
-                                    <td className="px-3 py-1.5 font-black uppercase text-slate-900 bg-white leading-normal">{oprForm.programName || '—'}</td>
-                                  </tr>
-                                  <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">TARIKH PROGRAM:</td>
-                                    <td className="px-3 py-1.5 font-semibold text-slate-800 bg-white">{formatDateDMY(oprForm.programDate) || '—'}</td>
-                                  </tr>
-                                  <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">MASA PROGRAM:</td>
-                                    <td className="px-3 py-1.5 font-semibold text-slate-800 bg-white">{oprForm.startTime} - {oprForm.endTime}</td>
-                                  </tr>
-                                  <tr className="border-b border-slate-200">
-                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">TEMPAT / LOKASI:</td>
-                                    <td className="px-3 py-1.5 font-bold uppercase text-slate-900 bg-white">{oprForm.location || '—'}</td>
-                                  </tr>
-                                  <tr>
-                                    <td className="bg-blue-50 font-black px-3 py-1.5 border-r border-slate-200 uppercase text-blue-900">PENYELARAS PROGRAM:</td>
-                                    <td className="px-3 py-1.5 font-black uppercase text-indigo-900 bg-white">{oprForm.coordinator || '—'}</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-
-                              <div className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200">
-                                <div className="flex items-center space-x-1.5 border-b border-blue-200 pb-1 mb-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                                  <h3 className="font-black text-blue-950 text-[10px] uppercase tracking-wide">I. OBJEKTIF PROGRAM</h3>
-                                </div>
-                                <ol className="list-decimal list-inside text-[10px] text-slate-800 space-y-1 text-justify pl-1 leading-normal">
-                                  {oprForm.objectives.filter(Boolean).length === 0 ? (
-                                    <li className="text-slate-400 italic font-normal">Tiada objektif dimasukkan...</li>
-                                  ) : (
-                                    oprForm.objectives.filter(Boolean).map((obj, i) => (
-                                      <li key={i} className="break-words"><span className="font-semibold text-slate-900">{obj}</span></li>
-                                    ))
-                                  )}
-                                </ol>
-                              </div>
-
-                              <div className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200">
-                                <div className="flex items-center space-x-1.5 border-b border-emerald-200 pb-1 mb-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                                  <h3 className="font-black text-emerald-950 text-[10px] uppercase tracking-wide">II. RINGKASAN AKTIVITI UTAMA</h3>
-                                </div>
-                                <ul className="list-disc list-inside text-[10px] text-slate-800 space-y-1 text-justify pl-1 leading-normal">
-                                  {oprForm.activities.filter(Boolean).length === 0 ? (
-                                    <li className="text-slate-400 italic font-normal">Tiada aktiviti dimasukkan...</li>
-                                  ) : (
-                                    oprForm.activities.filter(Boolean).map((act, i) => (
-                                      <li key={i} className="break-words">{act}</li>
-                                    ))
-                                  )}
-                                </ul>
-                              </div>
-
-                              <div className="bg-slate-50/90 p-2.5 rounded-lg border border-slate-200">
-                                <div className="flex items-center space-x-1.5 border-b border-amber-200 pb-1 mb-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-amber-600"></span>
-                                  <h3 className="font-black text-amber-950 text-[10px] uppercase tracking-wide">III. RUMUSAN PROGRAM</h3>
-                                </div>
-                                <ul className="list-disc list-inside text-[10px] text-slate-800 space-y-1 text-justify pl-1 leading-normal">
-                                  {oprForm.summary.filter(Boolean).length === 0 ? (
-                                    <li className="text-slate-400 italic font-normal">Tiada rumusan dimasukkan...</li>
-                                  ) : (
-                                    oprForm.summary.filter(Boolean).map((sum, i) => (
-                                      <li key={i} className="break-words">{sum}</li>
-                                    ))
-                                  )}
-                                </ul>
-                              </div>
-
-                              <div>
-                                <div className="flex items-center space-x-1.5 border-b border-indigo-200 pb-1 mb-2">
-                                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
-                                  <h3 className="font-black text-indigo-950 text-[10px] uppercase tracking-wide">IV. LAMPIRAN FOTOGRAFI PROGRAM</h3>
-                                </div>
-
-                                {validUploadedImages.length === 0 ? (
-                                  <div className="border border-dashed border-slate-300 p-3 text-center text-slate-400 rounded text-[9.5px] italic bg-slate-50">
-                                    Sila muat naik sekurang-kurangnya 2 keping gambar di sebelah.
-                                  </div>
-                                ) : (
-                                  <div className="grid grid-cols-2 gap-2 border border-slate-200 p-2 bg-slate-50 rounded-lg">
-                                    {validUploadedImages.map((imgUrl, i) => (
-                                      <div 
-                                        key={i} 
-                                        className="bg-slate-900 border border-slate-300 overflow-hidden rounded-md h-32 flex items-center justify-center p-0.5 shadow-sm"
-                                      >
-                                        <img 
-                                          src={imgUrl} 
-                                          alt={`Foto ${i + 1}`} 
-                                          className="w-full h-full object-cover rounded" 
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="pt-3 border-t-2 border-slate-800 flex items-end justify-between bg-gradient-to-r from-slate-50 via-white to-blue-50 p-2.5 rounded-lg border border-slate-200 mt-2">
-                              <div>
-                                <p className="text-[9px] font-black text-blue-900 uppercase tracking-wider">DISEDIAKAN OLEH:</p>
-                                <div className="h-6 border-b border-dashed border-slate-400 w-40 my-1"></div>
-                                <p className="font-black text-slate-900 uppercase text-[10px]">{oprForm.reporterName || '—'}</p>
-                                <p className="text-[9px] text-slate-600 font-semibold whitespace-pre-line">{oprForm.reporterDesignation || '—'}</p>
-                              </div>
-
-                              <div className="text-right">
-                                <p className="text-[8.5px] font-mono text-slate-500 font-bold">SK SUNGAI BAYAN © OPR AUTOMATOR</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {oprTab === 'archive' && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3 border-slate-100">
-                        <div>
-                          <h3 className="font-bold text-slate-900 text-base">Peti Arkib & Sejarah OPR SK Sungai Bayan</h3>
-                          <p className="text-xs text-slate-500">Pusat sehenti bagi menyemak, mencetak, dan memuat turun laporan OPR yang tersimpan.</p>
-                        </div>
-
-                        <div className="relative">
-                          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                          <input 
-                            type="text" 
-                            placeholder="Cari tajuk program..."
-                            value={oprArchiveSearch}
-                            onChange={e => setOprArchiveSearch(e.target.value)}
-                            className="pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none w-64 focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200">
-                            <tr>
-                              <th className="p-3">Tarikh</th>
-                              <th className="p-3">Nama Program / Aktiviti</th>
-                              <th className="p-3">Lokasi</th>
-                              <th className="p-3">Penyelaras</th>
-                              <th className="p-3">Penyedia</th>
-                              <th className="p-3 text-center">Tindakan & Muat Turun</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {oprArchiveList.length === 0 ? (
-                              <tr>
-                                <td colSpan="6" className="p-6 text-center text-slate-400 italic">
-                                  Tiada rekod OPR ditemui. Sila bina laporan baru di tab "Bina OPR Baru".
-                                </td>
-                              </tr>
-                            ) : (
-                              oprArchiveList.filter(item => item.programName.toLowerCase().includes(oprArchiveSearch.toLowerCase())).map((item, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50 transition">
-                                  <td className="p-3 font-mono font-bold text-blue-700">{formatDateDMY(item.programDate)}</td>
-                                  <td className="p-3 font-bold text-slate-900 max-w-xs">{item.programName}</td>
-                                  <td className="p-3 text-slate-600">{item.location}</td>
-                                  <td className="p-3 text-slate-700">{item.coordinator}</td>
-                                  <td className="p-3 text-slate-700">{item.reporterName}</td>
-                                  <td className="p-3 text-center">
-                                    <div className="flex items-center justify-center space-x-1.5">
-                                      <button 
-                                        onClick={() => loadOprFromArchive(item)}
-                                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold px-2 py-1 rounded text-[10px] border border-blue-200 transition inline-flex items-center gap-1"
-                                        title="Buka semula dalam borang"
-                                      >
-                                        <Eye className="w-3 h-3" />
-                                        <span>Buka</span>
-                                      </button>
-
-                                      <button 
-                                        onClick={() => handleArchiveDownloadPng(item)}
-                                        className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded text-[10px] border border-emerald-200 transition inline-flex items-center gap-1"
-                                        title="Muat Turun PNG"
-                                      >
-                                        <Download className="w-3 h-3 text-emerald-600" />
-                                        <span>PNG</span>
-                                      </button>
-
-                                      <button 
-                                        onClick={() => handleArchiveDownloadPdf(item)}
-                                        className="bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold px-2 py-1 rounded text-[10px] border border-purple-200 transition inline-flex items-center gap-1"
-                                        title="Muat Turun PDF"
-                                      >
-                                        <FileText className="w-3 h-3 text-purple-600" />
-                                        <span>PDF</span>
-                                      </button>
-
-                                      <button 
-                                        onClick={() => handleArchivePrint(item)}
-                                        className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-2 py-1 rounded text-[10px] transition inline-flex items-center gap-1"
-                                        title="Cetak A4"
-                                      >
-                                        <Printer className="w-3 h-3 text-amber-300" />
-                                        <span>Cetak</span>
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {activeTab === 'dashboard' && (
                 <div className="space-y-4 h-full flex flex-col justify-between">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -2672,84 +1815,41 @@ export default function App() {
                 <div className="space-y-4">
                   <div className="bg-purple-900 text-white p-4 rounded-xl shadow-md">
                     <h2 className="text-lg font-bold">Hub Pentadbir Sistem (Admin)</h2>
-                    <p className="text-purple-200 text-xs">Akses penuh pengurusan data murid, tetapan sekolah, dan selenggara rekod OPR.</p>
+                    <p className="text-purple-200 text-xs">Akses penuh pengurusan data murid dan tetapan sekolah.</p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                      <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Data Murid)</h3>
-                      <p className="text-xs text-slate-600">
-                        Pautan <strong>Publish to Web (CSV)</strong> data murid sekolah.
-                      </p>
-                      
-                      <div className="flex flex-col gap-2">
-                        <input 
-                          type="text" 
-                          value={sheetUrl}
-                          onChange={e => setSheetUrl(e.target.value)}
-                          placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
-                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none"
-                        />
-                        <button 
-                          onClick={handleGoogleSheetsSync}
-                          disabled={syncStatus.loading}
-                          className="flex items-center justify-center space-x-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${syncStatus.loading ? 'animate-spin' : ''}`} />
-                          <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Data Murid'}</span>
-                        </button>
-                      </div>
-
-                      {syncStatus.message && (
-                        <div className={`p-3 rounded-lg text-xs font-medium flex items-center space-x-2 ${
-                          syncStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
-                        }`}>
-                          {syncStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
-                          <span>{syncStatus.message}</span>
-                        </div>
-                      )}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3 max-w-xl">
+                    <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Data Murid)</h3>
+                    <p className="text-xs text-slate-600">
+                      Pautan <strong>Publish to Web (CSV)</strong> data murid sekolah.
+                    </p>
+                    
+                    <div className="flex flex-col gap-2">
+                      <input 
+                        type="text" 
+                        value={sheetUrl}
+                        onChange={e => setSheetUrl(e.target.value)}
+                        placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+                      />
+                      <button 
+                        onClick={handleGoogleSheetsSync}
+                        disabled={syncStatus.loading}
+                        className="flex items-center justify-center space-x-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${syncStatus.loading ? 'animate-spin' : ''}`} />
+                        <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Data Murid'}</span>
+                      </button>
                     </div>
 
-                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                      <h3 className="font-bold text-slate-800 text-sm">Google Sheets Live Sync (Arkib & Apps Script OPR)</h3>
-                      <p className="text-xs text-slate-600">
-                        Pautan <strong>CSV Web</strong> & <strong>Apps Script Web App API</strong> untuk simpan/baca rekod OPR.
-                      </p>
-                      
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-bold text-slate-500">Pautan CSV Arkib Google Sheets</label>
-                        <input 
-                          type="text" 
-                          value={oprSheetUrl}
-                          onChange={e => {
-                            setOprSheetUrl(e.target.value);
-                            localStorage.setItem('sksb_opr_sheet_url', e.target.value);
-                          }}
-                          placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
-                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-
-                        <label className="text-[10px] font-bold text-slate-500 mt-1">Pautan Web App Google Apps Script (Auto-Save)</label>
-                        <input 
-                          type="text" 
-                          value={oprApiUrl}
-                          onChange={e => {
-                            setOprApiUrl(e.target.value);
-                            localStorage.setItem('sksb_opr_api_url', e.target.value);
-                          }}
-                          placeholder="https://script.google.com/macros/s/.../exec"
-                          className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-
-                        <button 
-                          onClick={() => window.location.reload()}
-                          className="flex items-center justify-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm mt-1"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Simpan & Refresh Tetapan OPR</span>
-                        </button>
+                    {syncStatus.message && (
+                      <div className={`p-3 rounded-lg text-xs font-medium flex items-center space-x-2 ${
+                        syncStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}>
+                        {syncStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                        <span>{syncStatus.message}</span>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
