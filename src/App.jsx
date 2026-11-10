@@ -669,6 +669,25 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <style>{`
+        /* SMART TV CURSOR & CLICK ACCESSIBILITY ENHANCEMENTS */
+        button, input, select, label, [role="button"] {
+          cursor: pointer !important;
+          touch-action: manipulation;
+        }
+
+        button:focus-visible, input:focus-visible, select:focus-visible {
+          outline: 3px solid #f59e0b !important;
+          outline-offset: 2px !important;
+        }
+
+        /* Fix Date Picker Trigger Area for Smart TV Cursor */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          cursor: pointer !important;
+          padding: 6px !important;
+          margin-right: -4px;
+          filter: invert(0.3);
+        }
+
         @page {
           size: A4 portrait;
           margin: 0;
@@ -759,7 +778,7 @@ export default function App() {
 
               <button 
                 onClick={() => setIsFullscreenMode(false)}
-                className="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2.5 rounded-xl transition border border-slate-700"
+                className="bg-slate-800 hover:bg-slate-700 text-amber-400 p-3 rounded-xl transition border border-slate-700 hover:border-amber-400 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-95"
                 title="Keluar Skrin Penuh"
               >
                 <Minimize2 className="w-6 h-6" />
@@ -903,7 +922,7 @@ export default function App() {
                   </span>
                   <button 
                     onClick={handleLogout}
-                    className="flex items-center space-x-1 bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg transition"
+                    className="flex items-center space-x-1.5 bg-red-600 hover:bg-red-700 text-white text-xs px-3.5 py-2 rounded-lg transition min-h-[40px] cursor-pointer hover:ring-2 hover:ring-red-400 active:scale-95 font-semibold"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>Log Keluar</span>
@@ -912,7 +931,7 @@ export default function App() {
               ) : (
                 <button 
                   onClick={() => setShowLoginModal(true)}
-                  className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-medium transition shadow-sm"
+                  className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-lg font-bold transition shadow-sm min-h-[40px] cursor-pointer hover:ring-2 hover:ring-blue-400 active:scale-95"
                 >
                   <LogIn className="w-3.5 h-3.5" />
                   <span>Log Masuk Admin</span>
@@ -922,10 +941,10 @@ export default function App() {
           </header>
 
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            <nav className="w-full md:w-60 bg-white border-r border-slate-200 p-3 space-y-1 no-print">
+            <nav className="w-full md:w-60 bg-white border-r border-slate-200 p-3 space-y-1.5 no-print">
               <button 
                 onClick={() => setActiveTab('dashboard')}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer min-h-[44px] ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               >
                 <Home className="w-4 h-4" />
                 <span>Papan Pemuka</span>
@@ -933,7 +952,7 @@ export default function App() {
 
               <button 
                 onClick={() => setActiveTab('scan')}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'scan' ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer min-h-[44px] ${activeTab === 'scan' ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               >
                 <QrCode className="w-4 h-4 text-emerald-600" />
                 <span>Imbas QR (Pintu Pagar)</span>
@@ -941,7 +960,7 @@ export default function App() {
 
               <button 
                 onClick={() => setActiveTab('print')}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'print' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer min-h-[44px] ${activeTab === 'print' ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               >
                 <CreditCard className="w-4 h-4 text-indigo-600" />
                 <span>Cetak Kad ID / Sijil</span>
@@ -949,7 +968,7 @@ export default function App() {
 
               <button 
                 onClick={() => setActiveTab('attendance')}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'attendance' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer min-h-[44px] ${activeTab === 'attendance' ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               >
                 <Calendar className="w-4 h-4" />
                 <span>Kehadiran Kelas</span>
@@ -957,7 +976,7 @@ export default function App() {
 
               <button 
                 onClick={() => setActiveTab('students')}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'students' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer min-h-[44px] ${activeTab === 'students' ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
               >
                 <Users className="w-4 h-4" />
                 <span>Direktori Murid ({activeStudents.length})</span>
@@ -966,7 +985,7 @@ export default function App() {
               {isAdmin && (
                 <button 
                   onClick={() => setActiveTab('admin')}
-                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium transition ${activeTab === 'admin' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium transition cursor-pointer min-h-[44px] ${activeTab === 'admin' ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
                 >
                   <Settings className="w-4 h-4" />
                   <span>Hub Pentadbir</span>
@@ -977,30 +996,34 @@ export default function App() {
             <main className="flex-1 p-4 md:p-5 overflow-y-auto max-w-7xl">
               {activeTab === 'dashboard' && (
                 <div className="space-y-4 h-full flex flex-col justify-between">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
                       <h2 className="text-lg font-bold text-slate-800">Ringkasan Kehadiran Keseluruhan</h2>
                       <p className="text-[11px] text-slate-500">Pantau statistik kehadiran harian dan senarai nama murid tidak hadir.</p>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <div className="flex items-center space-x-2 bg-white border border-slate-300 px-2.5 py-1 rounded-lg shadow-sm">
-                        <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                        <span className="text-[11px] font-bold text-slate-500">Tarikh:</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label 
+                        htmlflow="tv-date-input"
+                        className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm hover:border-blue-500 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition min-h-[44px]"
+                      >
+                        <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-600">Tarikh:</span>
                         <input 
+                          id="tv-date-input"
                           type="date" 
                           value={selectedDate}
                           onChange={e => setSelectedDate(e.target.value)}
-                          className="text-[11px] font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                          className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer py-1"
                         />
                         <span className="text-[10px] text-blue-600 font-mono font-bold border-l pl-2 border-slate-200">
                           ({formatDateDMY(selectedDate)})
                         </span>
-                      </div>
+                      </label>
 
                       <button 
                         onClick={handleClearAllSelectedDateAttendance}
-                        className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 text-xs font-bold px-2.5 py-1.5 rounded-lg transition"
+                        className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 text-xs font-bold px-3 py-2 rounded-xl transition min-h-[44px] cursor-pointer hover:ring-2 hover:ring-red-400 active:scale-95"
                         title="Bersihkan Semua Rekod Tarikh Ini Di Semua Peranti"
                       >
                         Reset Tarikh
@@ -1008,10 +1031,10 @@ export default function App() {
 
                       <button 
                         onClick={() => setIsFullscreenMode(true)}
-                        className="flex items-center space-x-1 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm"
+                        className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm min-h-[44px] cursor-pointer hover:ring-2 hover:ring-amber-400 active:scale-95"
                         title="Tukar ke Paparan Dedicated Display Skrin Penuh"
                       >
-                        <Maximize2 className="w-3.5 h-3.5 text-blue-400" />
+                        <Maximize2 className="w-4 h-4 text-blue-400" />
                         <span>Skrin Penuh</span>
                       </button>
                     </div>
@@ -1090,10 +1113,10 @@ export default function App() {
                         <select 
                           value={selectedMonth}
                           onChange={e => setSelectedMonth(Number(e.target.value))}
-                          className="bg-white/20 text-white text-[10px] font-bold rounded px-1.5 py-0.5 outline-none cursor-pointer"
+                          className="bg-white/20 text-white text-xs font-bold rounded-lg px-3 py-1.5 outline-none cursor-pointer border border-white/30 hover:bg-white/30 focus:ring-2 focus:ring-amber-300 min-h-[36px]"
                         >
                           {monthsList.map((m, idx) => (
-                            <option key={m} value={idx} className="text-slate-900">{m}</option>
+                            <option key={m} value={idx} className="text-slate-900 font-semibold">{m}</option>
                           ))}
                         </select>
                       </div>
@@ -1141,7 +1164,7 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-x-2 gap-y-1 max-h-24 overflow-y-auto pr-1">
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 max-h-24 overflow-y-auto pr-1">
                               {availableClasses.map((c, i) => {
                                 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#6366f1', '#84cc16'];
                                 const isSel = dashboardDetailClass === c;
@@ -1150,12 +1173,12 @@ export default function App() {
                                   <button
                                     key={c}
                                     onClick={() => setDashboardDetailClass(c)}
-                                    className={`flex items-center space-x-1.5 text-[10px] text-left p-1 rounded transition ${
-                                      isSel ? 'bg-slate-100 font-extrabold text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+                                    className={`flex items-center space-x-1.5 text-[10px] text-left p-1.5 rounded-lg transition min-h-[36px] cursor-pointer ${
+                                      isSel ? 'bg-blue-100 font-extrabold text-blue-800 ring-2 ring-blue-500' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                                     }`}
                                   >
-                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colors[i % colors.length] }}></span>
-                                    <span className="truncate max-w-[70px]">{c}</span>
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: colors[i % colors.length] }}></span>
+                                    <span className="truncate max-w-[70px] font-bold">{c}</span>
                                   </button>
                                 );
                               })}
@@ -1176,10 +1199,11 @@ export default function App() {
                             const isSel = selectedMonth === idx;
 
                             return (
-                              <div 
+                              <button 
                                 key={m} 
+                                type="button"
                                 onClick={() => setSelectedMonth(idx)}
-                                className="flex-1 flex flex-col items-center gap-1 group cursor-pointer"
+                                className="flex-1 flex flex-col items-center gap-1 group cursor-pointer border-none bg-transparent outline-none focus:ring-2 focus:ring-amber-400 rounded-lg p-0.5"
                               >
                                 <span className={`text-[8px] font-bold ${isSel ? 'text-blue-600' : 'text-slate-400'}`}>
                                   {mStats.percent}%
@@ -1192,10 +1216,10 @@ export default function App() {
                                     style={{ height: `${mStats.percent}%` }}
                                   ></div>
                                 </div>
-                                <span className={`text-[9px] font-bold ${isSel ? 'text-blue-700 underline' : 'text-slate-600'}`}>
+                                <span className={`text-[9px] font-bold ${isSel ? 'text-blue-700 underline font-black' : 'text-slate-600'}`}>
                                   {m}
                                 </span>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -1213,7 +1237,7 @@ export default function App() {
                           <select 
                             value={dashboardDetailClass} 
                             onChange={e => setDashboardDetailClass(e.target.value)}
-                            className="bg-slate-100 border border-slate-300 text-[10px] font-bold text-slate-800 rounded px-2 py-1 outline-none"
+                            className="bg-slate-100 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:border-blue-500 focus:ring-2 focus:ring-amber-400 min-h-[38px]"
                           >
                             <option value="Semua Kelas">Semua Kelas</option>
                             {availableClasses.map(c => (
@@ -1307,28 +1331,33 @@ export default function App() {
                       <p className="text-xs text-slate-500">Pilih kelas dan tarikh untuk semakan atau kemaskini kehadiran.</p>
                     </div>
                     
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center space-x-1 bg-white border border-slate-300 px-2.5 py-1 rounded-lg shadow-sm">
-                        <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <label 
+                        htmlFor="att-date-input"
+                        className="flex items-center space-x-1.5 bg-white border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm hover:border-blue-500 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition min-h-[44px]"
+                      >
+                        <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
                         <input 
+                          id="att-date-input"
                           type="date" 
                           value={selectedDate}
                           onChange={e => setSelectedDate(e.target.value)}
-                          className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                          className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer py-1"
                         />
                         <button 
+                          type="button"
                           onClick={setToToday}
-                          className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded border border-blue-200 transition ml-1"
+                          className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-[11px] font-black px-2.5 py-1 rounded-lg transition ml-1 min-h-[32px] cursor-pointer"
                           title="Pilih Tarikh Hari Ini"
                         >
                           Hari Ini
                         </button>
-                      </div>
+                      </label>
 
                       <select 
                         value={selectedClass} 
                         onChange={e => setSelectedClass(e.target.value)}
-                        className="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1.5 outline-none shadow-sm"
+                        className="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer hover:border-blue-500 focus:ring-2 focus:ring-amber-400 min-h-[44px]"
                       >
                         {availableClasses.map(c => (
                           <option key={c} value={c}>Kelas {c}</option>
@@ -1337,14 +1366,14 @@ export default function App() {
 
                       <button 
                         onClick={markAllPresent}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition border border-slate-300"
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-2 rounded-xl transition border border-slate-300 min-h-[44px] cursor-pointer hover:ring-2 hover:ring-blue-400 active:scale-95"
                       >
                         Tanda Semua Hadir
                       </button>
 
                       <button 
                         onClick={handleResetDailyAttendance}
-                        className="flex items-center space-x-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1.5 rounded-lg transition border border-amber-300"
+                        className="flex items-center space-x-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold px-3 py-2 rounded-xl transition border border-amber-300 min-h-[44px] cursor-pointer hover:ring-2 hover:ring-amber-500 active:scale-95"
                         title="Reset Kehadiran Kelas Hari Ini Di Semua Peranti"
                       >
                         <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
@@ -1354,9 +1383,9 @@ export default function App() {
                       <button 
                         onClick={handleSaveAttendance}
                         disabled={isSavingAttendance}
-                        className="flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm"
+                        className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm min-h-[44px] cursor-pointer hover:ring-2 hover:ring-emerald-400 active:scale-95"
                       >
-                        <Save className={`w-3.5 h-3.5 ${isSavingAttendance ? 'animate-spin' : ''}`} />
+                        <Save className={`w-4 h-4 ${isSavingAttendance ? 'animate-spin' : ''}`} />
                         <span>{isSavingAttendance ? 'Sedang Simpan...' : 'Simpan Rekod'}</span>
                       </button>
                     </div>
@@ -1373,9 +1402,9 @@ export default function App() {
                     <table className="w-full text-left text-xs">
                       <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-slate-500 uppercase">
                         <tr>
-                          <th className="px-4 py-2.5">Murid</th>
-                          <th className="px-4 py-2.5">Kelas</th>
-                          <th className="px-4 py-2.5 text-center">Status Kehadiran ({formatDateDMY(selectedDate)})</th>
+                          <th className="px-4 py-3">Murid</th>
+                          <th className="px-4 py-3">Kelas</th>
+                          <th className="px-4 py-3 text-center">Status Kehadiran ({formatDateDMY(selectedDate)})</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -1383,28 +1412,28 @@ export default function App() {
                           const att = filteredAttendanceByDate.find(a => a.student_id === s.id);
                           return (
                             <tr key={s.id} className="hover:bg-slate-50/80">
-                              <td className="px-4 py-2.5">
+                              <td className="px-4 py-3">
                                 <p className="font-bold text-slate-900">{s.name}</p>
                                 <p className="text-[10px] text-slate-400">{s.id}</p>
                               </td>
-                              <td className="px-4 py-2.5 text-slate-600">{s.class}</td>
-                              <td className="px-4 py-2.5">
-                                <div className="flex items-center justify-center space-x-1.5">
+                              <td className="px-4 py-3 text-slate-600 font-semibold">{s.class}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-center space-x-2">
                                   <button 
                                     onClick={() => toggleAttendance(s.id, 'Hadir')}
-                                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition ${att?.status === 'Hadir' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50'}`}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition min-h-[38px] cursor-pointer active:scale-95 ${att?.status === 'Hadir' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400' : 'bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-800'}`}
                                   >
                                     Hadir
                                   </button>
                                   <button 
                                     onClick={() => toggleAttendance(s.id, 'Tidak Hadir')}
-                                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition ${att?.status === 'Tidak Hadir' ? 'bg-red-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-red-50'}`}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition min-h-[38px] cursor-pointer active:scale-95 ${att?.status === 'Tidak Hadir' ? 'bg-red-600 text-white shadow-sm ring-2 ring-red-400' : 'bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-800'}`}
                                   >
                                     Tidak Hadir
                                   </button>
                                   <button 
                                     onClick={() => toggleAttendance(s.id, 'Bersebab')}
-                                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition ${att?.status === 'Bersebab' ? 'bg-purple-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-purple-50'}`}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold transition min-h-[38px] cursor-pointer active:scale-95 ${att?.status === 'Bersebab' ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-400' : 'bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-800'}`}
                                   >
                                     Bersebab
                                   </button>
@@ -1421,10 +1450,10 @@ export default function App() {
 
               {activeTab === 'print' && (
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-2 bg-slate-200 p-1 rounded-xl no-print max-w-md">
+                  <div className="flex items-center space-x-2 bg-slate-200 p-1.5 rounded-xl no-print max-w-md">
                     <button 
                       onClick={() => setPrintSubTab('cards')}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition min-h-[40px] cursor-pointer ${
                         printSubTab === 'cards' 
                           ? 'bg-indigo-900 text-white shadow-sm' 
                           : 'text-slate-600 hover:text-slate-900'
@@ -1434,7 +1463,7 @@ export default function App() {
                     </button>
                     <button 
                       onClick={() => setPrintSubTab('certs')}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition min-h-[40px] cursor-pointer ${
                         printSubTab === 'certs' 
                           ? 'bg-amber-600 text-white shadow-sm' 
                           : 'text-slate-600 hover:text-slate-900'
@@ -1452,13 +1481,13 @@ export default function App() {
                           <p className="text-indigo-200 text-xs">Pilih kategori murid aktif atau pendaftaran baru (Incoming) untuk cetakan kad.</p>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="flex items-center space-x-1.5 bg-indigo-950/80 px-2.5 py-1.5 rounded-lg border border-indigo-700/50 cursor-pointer text-xs font-medium">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <label className="flex items-center space-x-2 bg-indigo-950/80 px-3 py-2 rounded-xl border border-indigo-700/50 cursor-pointer text-xs font-medium min-h-[40px]">
                             <input 
                               type="checkbox" 
                               checked={deduplicatePrint}
                               onChange={e => setDeduplicatePrint(e.target.checked)}
-                              className="rounded text-indigo-500 focus:ring-0 cursor-pointer"
+                              className="rounded text-indigo-500 focus:ring-0 cursor-pointer w-4 h-4"
                             />
                             <span>Tapis Murid Berulang (1 Kad / Murid)</span>
                           </label>
@@ -1466,7 +1495,7 @@ export default function App() {
                           <select 
                             value={printClassFilter} 
                             onChange={e => setPrintClassFilter(e.target.value)}
-                            className="bg-white text-slate-900 text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none"
+                            className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl outline-none cursor-pointer hover:bg-slate-100 min-h-[40px]"
                           >
                             <option value="Semua">Semua Murid ({printableStudents.length})</option>
                             
@@ -1494,17 +1523,17 @@ export default function App() {
                           <button 
                             onClick={handleDownloadPdf}
                             disabled={isGeneratingPdf}
-                            className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-500 disabled:bg-amber-300 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-md"
+                            className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-500 disabled:bg-amber-300 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md min-h-[40px] cursor-pointer"
                           >
-                            <Download className={`w-3.5 h-3.5 ${isGeneratingPdf ? 'animate-bounce' : ''}`} />
+                            <Download className={`w-4 h-4 ${isGeneratingPdf ? 'animate-bounce' : ''}`} />
                             <span>{isGeneratingPdf ? 'Penjana PDF...' : 'Muat Turun PDF'}</span>
                           </button>
 
                           <button 
                             onClick={() => window.print()} 
-                            className="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-md"
+                            className="flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md min-h-[40px] cursor-pointer"
                           >
-                            <Printer className="w-3.5 h-3.5" />
+                            <Printer className="w-4 h-4" />
                             <span>Cetak Kad ID ({printFilteredStudents.length})</span>
                           </button>
                         </div>
@@ -1643,7 +1672,7 @@ export default function App() {
                           <select 
                             value={certFilterClass} 
                             onChange={e => setCertFilterClass(e.target.value)}
-                            className="bg-white text-slate-900 text-xs font-semibold px-2.5 py-1.5 rounded-lg outline-none"
+                            className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl outline-none cursor-pointer min-h-[40px]"
                           >
                             <option value="Semua">Semua Kelas ({activeStudents.length})</option>
                             {availableClasses.map(c => (
@@ -1653,9 +1682,9 @@ export default function App() {
 
                           <button 
                             onClick={() => window.print()} 
-                            className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg transition shadow-md"
+                            className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md min-h-[40px] cursor-pointer"
                           >
-                            <Printer className="w-3.5 h-3.5" />
+                            <Printer className="w-4 h-4" />
                             <span>Cetak Sijil ({getPerfectAttendanceStudents().length})</span>
                           </button>
                         </div>
@@ -1729,7 +1758,7 @@ export default function App() {
                     <p className="text-emerald-200 text-xs">Tarikh Imbasan: <strong>{formatDateDMY(selectedDate)}</strong></p>
                   </div>
 
-                  <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                     <div id="qr-reader" className="w-full rounded-lg overflow-hidden border-2 border-dashed border-slate-300"></div>
 
                     <form onSubmit={handleManualQrSubmit} className="flex gap-2">
@@ -1738,9 +1767,9 @@ export default function App() {
                         value={manualQrInput}
                         onChange={e => setManualQrInput(e.target.value)}
                         placeholder="Atau taip No ID murid secara manual..."
-                        className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none min-h-[44px]"
                       />
-                      <button type="submit" className="bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition">
+                      <button type="submit" className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-emerald-700 transition min-h-[44px] cursor-pointer">
                         Tanda Hadir
                       </button>
                     </form>
@@ -1775,16 +1804,16 @@ export default function App() {
 
               {activeTab === 'students' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <h2 className="text-lg font-bold text-slate-800">Direktori Murid Aktif ({activeStudents.length})</h2>
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                    <div className="relative w-full sm:w-auto">
+                      <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
                       <input 
                         type="text" 
                         placeholder="Cari nama / ID murid..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="pl-8 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none w-56"
+                        className="pl-9 pr-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-64 min-h-[44px]"
                       />
                     </div>
                   </div>
@@ -1824,20 +1853,20 @@ export default function App() {
                       Pautan <strong>Publish to Web (CSV)</strong> data murid sekolah.
                     </p>
                     
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
                       <input 
                         type="text" 
                         value={sheetUrl}
                         onChange={e => setSheetUrl(e.target.value)}
                         placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv"
-                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-purple-500 outline-none min-h-[44px]"
                       />
                       <button 
                         onClick={handleGoogleSheetsSync}
                         disabled={syncStatus.loading}
-                        className="flex items-center justify-center space-x-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition shadow-sm"
+                        className="flex items-center justify-center space-x-1.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm min-h-[44px] cursor-pointer"
                       >
-                        <RefreshCw className={`w-3.5 h-3.5 ${syncStatus.loading ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 ${syncStatus.loading ? 'animate-spin' : ''}`} />
                         <span>{syncStatus.loading ? 'Sedang Sync...' : 'Sync Data Murid'}</span>
                       </button>
                     </div>
@@ -1881,7 +1910,7 @@ export default function App() {
                       value={adminId}
                       onChange={e => setAdminId(e.target.value)}
                       placeholder="adminsksb"
-                      className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none min-h-[44px]"
                       required
                     />
                   </div>
@@ -1893,7 +1922,7 @@ export default function App() {
                       value={adminPass}
                       onChange={e => setAdminPass(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none min-h-[44px]"
                       required
                     />
                   </div>
@@ -1902,13 +1931,13 @@ export default function App() {
                     <button 
                       type="button" 
                       onClick={() => setShowLoginModal(false)}
-                      className="flex-1 bg-slate-100 text-slate-700 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-200 transition"
+                      className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition min-h-[44px] cursor-pointer"
                     >
                       Batal
                     </button>
                     <button 
                       type="submit" 
-                      className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700 transition shadow-sm"
+                      className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-sm min-h-[44px] cursor-pointer"
                     >
                       Log Masuk
                     </button>
