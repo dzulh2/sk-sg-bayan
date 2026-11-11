@@ -3,7 +3,7 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Download
+  Maximize2, Minimize2, RotateCcw, Clock, Download, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -148,6 +148,12 @@ export default function App() {
 
   const setToToday = () => {
     setSelectedDate(new Date().toISOString().split('T')[0]);
+  };
+
+  const shiftDate = (days) => {
+    const current = new Date(selectedDate);
+    current.setDate(current.getDate() + days);
+    setSelectedDate(current.toISOString().split('T')[0]);
   };
 
   useEffect(() => {
@@ -669,23 +675,22 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans">
       <style>{`
-        /* SMART TV CURSOR & CLICK ACCESSIBILITY ENHANCEMENTS */
+        /* SMART TV REMOTE CURSOR & DROPDOWN COMPATIBILITY FIXES */
         button, input, select, label, [role="button"] {
           cursor: pointer !important;
           touch-action: manipulation;
+          -webkit-tap-highlight-color: rgba(245, 158, 11, 0.4);
         }
 
-        button:focus-visible, input:focus-visible, select:focus-visible {
+        button:focus, input:focus, select:focus {
           outline: 3px solid #f59e0b !important;
           outline-offset: 2px !important;
         }
 
-        /* Fix Date Picker Trigger Area for Smart TV Cursor */
-        input[type="date"]::-webkit-calendar-picker-indicator {
-          cursor: pointer !important;
-          padding: 6px !important;
-          margin-right: -4px;
-          filter: invert(0.3);
+        select {
+          -webkit-appearance: menulist !important;
+          appearance: auto !important;
+          opacity: 1 !important;
         }
 
         @page {
@@ -1003,23 +1008,37 @@ export default function App() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2">
-                      <label 
-                        htmlflow="tv-date-input"
-                        className="flex items-center space-x-2 bg-white border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm hover:border-blue-500 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition min-h-[44px]"
-                      >
-                        <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <span className="text-[11px] font-bold text-slate-600">Tarikh:</span>
-                        <input 
-                          id="tv-date-input"
-                          type="date" 
-                          value={selectedDate}
-                          onChange={e => setSelectedDate(e.target.value)}
-                          className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer py-1"
-                        />
-                        <span className="text-[10px] text-blue-600 font-mono font-bold border-l pl-2 border-slate-200">
-                          ({formatDateDMY(selectedDate)})
-                        </span>
-                      </label>
+                      {/* SMART TV DATE CONTROLLER: Left/Right Buttons for Easy TV Remote Navigation */}
+                      <div className="flex items-center bg-white border-2 border-slate-300 rounded-xl shadow-sm p-0.5">
+                        <button 
+                          onClick={() => shiftDate(-1)} 
+                          className="bg-slate-100 hover:bg-slate-200 p-2 rounded-l-lg border-r border-slate-300 text-slate-700 font-bold min-h-[40px] min-w-[40px] flex items-center justify-center active:scale-95"
+                          title="Hari Sebelum"
+                        >
+                          <ChevronLeft className="w-5 h-5 text-blue-700" />
+                        </button>
+                        
+                        <div className="flex items-center space-x-1.5 px-3 py-1">
+                          <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <input 
+                            type="date" 
+                            value={selectedDate}
+                            onChange={e => setSelectedDate(e.target.value)}
+                            className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                          />
+                          <span className="text-[11px] text-blue-700 font-mono font-black border-l pl-2 border-slate-200">
+                            ({formatDateDMY(selectedDate)})
+                          </span>
+                        </div>
+
+                        <button 
+                          onClick={() => shiftDate(1)} 
+                          className="bg-slate-100 hover:bg-slate-200 p-2 rounded-r-lg border-l border-slate-300 text-slate-700 font-bold min-h-[40px] min-w-[40px] flex items-center justify-center active:scale-95"
+                          title="Hari Selepas"
+                        >
+                          <ChevronRight className="w-5 h-5 text-blue-700" />
+                        </button>
+                      </div>
 
                       <button 
                         onClick={handleClearAllSelectedDateAttendance}
@@ -1113,6 +1132,7 @@ export default function App() {
                         <select 
                           value={selectedMonth}
                           onChange={e => setSelectedMonth(Number(e.target.value))}
+                          onClick={e => e.stopPropagation()}
                           className="bg-white/20 text-white text-xs font-bold rounded-lg px-3 py-1.5 outline-none cursor-pointer border border-white/30 hover:bg-white/30 focus:ring-2 focus:ring-amber-300 min-h-[36px]"
                         >
                           {monthsList.map((m, idx) => (
@@ -1237,7 +1257,8 @@ export default function App() {
                           <select 
                             value={dashboardDetailClass} 
                             onChange={e => setDashboardDetailClass(e.target.value)}
-                            className="bg-slate-100 border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:border-blue-500 focus:ring-2 focus:ring-amber-400 min-h-[38px]"
+                            onClick={e => e.stopPropagation()}
+                            className="bg-slate-100 border-2 border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-3 py-1.5 outline-none cursor-pointer hover:border-blue-500 focus:ring-2 focus:ring-amber-400 min-h-[40px]"
                           >
                             <option value="Semua Kelas">Semua Kelas</option>
                             {availableClasses.map(c => (
@@ -1332,32 +1353,49 @@ export default function App() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <label 
-                        htmlFor="att-date-input"
-                        className="flex items-center space-x-1.5 bg-white border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm hover:border-blue-500 focus-within:ring-2 focus-within:ring-amber-400 cursor-pointer transition min-h-[44px]"
-                      >
-                        <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <input 
-                          id="att-date-input"
-                          type="date" 
-                          value={selectedDate}
-                          onChange={e => setSelectedDate(e.target.value)}
-                          className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer py-1"
-                        />
+                      {/* SMART TV DATE SHIFTER */}
+                      <div className="flex items-center bg-white border-2 border-slate-300 rounded-xl shadow-sm p-0.5">
                         <button 
-                          type="button"
-                          onClick={setToToday}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-[11px] font-black px-2.5 py-1 rounded-lg transition ml-1 min-h-[32px] cursor-pointer"
-                          title="Pilih Tarikh Hari Ini"
+                          onClick={() => shiftDate(-1)} 
+                          className="bg-slate-100 hover:bg-slate-200 p-2 rounded-l-lg border-r border-slate-300 text-slate-700 font-bold min-h-[40px] min-w-[40px] flex items-center justify-center active:scale-95"
+                          title="Hari Sebelum"
                         >
-                          Hari Ini
+                          <ChevronLeft className="w-5 h-5 text-blue-700" />
                         </button>
-                      </label>
+
+                        <div className="flex items-center space-x-1.5 px-3 py-1">
+                          <Calendar className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <input 
+                            type="date" 
+                            value={selectedDate}
+                            onChange={e => setSelectedDate(e.target.value)}
+                            className="text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer"
+                          />
+                        </div>
+
+                        <button 
+                          onClick={() => shiftDate(1)} 
+                          className="bg-slate-100 hover:bg-slate-200 p-2 rounded-r-lg border-l border-slate-300 text-slate-700 font-bold min-h-[40px] min-w-[40px] flex items-center justify-center active:scale-95"
+                          title="Hari Selepas"
+                        >
+                          <ChevronRight className="w-5 h-5 text-blue-700" />
+                        </button>
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={setToToday}
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-900 text-xs font-extrabold px-3 py-2 rounded-xl border border-blue-300 transition min-h-[44px] cursor-pointer"
+                        title="Pilih Tarikh Hari Ini"
+                      >
+                        Hari Ini
+                      </button>
 
                       <select 
                         value={selectedClass} 
                         onChange={e => setSelectedClass(e.target.value)}
-                        className="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer hover:border-blue-500 focus:ring-2 focus:ring-amber-400 min-h-[44px]"
+                        onClick={e => e.stopPropagation()}
+                        className="bg-white border-2 border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-2 outline-none shadow-sm cursor-pointer hover:border-blue-500 focus:ring-2 focus:ring-amber-400 min-h-[44px]"
                       >
                         {availableClasses.map(c => (
                           <option key={c} value={c}>Kelas {c}</option>
@@ -1495,6 +1533,7 @@ export default function App() {
                           <select 
                             value={printClassFilter} 
                             onChange={e => setPrintClassFilter(e.target.value)}
+                            onClick={e => e.stopPropagation()}
                             className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl outline-none cursor-pointer hover:bg-slate-100 min-h-[40px]"
                           >
                             <option value="Semua">Semua Murid ({printableStudents.length})</option>
@@ -1672,6 +1711,7 @@ export default function App() {
                           <select 
                             value={certFilterClass} 
                             onChange={e => setCertFilterClass(e.target.value)}
+                            onClick={e => e.stopPropagation()}
                             className="bg-white text-slate-900 text-xs font-semibold px-3 py-2 rounded-xl outline-none cursor-pointer min-h-[40px]"
                           >
                             <option value="Semua">Semua Kelas ({activeStudents.length})</option>
