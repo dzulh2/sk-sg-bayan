@@ -3,7 +3,8 @@ import {
   Users, Shield, Search, Calendar, Settings, LogIn, LogOut, 
   Home, RefreshCw, CheckCircle2, AlertCircle, QrCode, Camera, Printer, 
   CreditCard, Save, BarChart3, UserX, Percent, Trophy, Award,
-  Maximize2, Minimize2, RotateCcw, Clock, Download, ChevronLeft, ChevronRight
+  Maximize2, Minimize2, RotateCcw, Clock, Download, ChevronLeft, ChevronRight,
+  Smartphone, Wifi, WifiOff
 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
@@ -81,6 +82,10 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
 
+  // PWA States
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth());
 
@@ -128,6 +133,42 @@ export default function App() {
 
   const [scanResult, setScanResult] = useState(null);
   const [manualQrInput, setManualQrInput] = useState('');
+
+  // PWA Install Prompt & Network Status Listeners
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+    };
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const activeStudents = students.filter(
     s => s.status.toLowerCase() === 'active' || s.status.toLowerCase() === 'aktif'
@@ -919,7 +960,25 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2.5">
+              {/* PWA Status Online / Offline */}
+              <div className={`hidden sm:flex items-center space-x-1 text-[11px] px-2.5 py-1 rounded-full border font-semibold ${isOnline ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'}`}>
+                {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                <span>{isOnline ? 'Online' : 'Offline Mode'}</span>
+              </div>
+
+              {/* PWA Install App Button */}
+              {deferredPrompt && (
+                <button
+                  onClick={handleInstallPwa}
+                  className="flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-3.5 py-2 rounded-lg font-extrabold transition shadow-sm min-h-[40px] cursor-pointer hover:ring-2 hover:ring-amber-200 active:scale-95"
+                  title="Pasang sebagai Aplikasi (PWA)"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Pasang App</span>
+                </button>
+              )}
+
               {isAdmin ? (
                 <div className="flex items-center space-x-3">
                   <span className="bg-emerald-500/20 text-emerald-300 text-xs px-3 py-1 rounded-full border border-emerald-500/30 font-medium">
@@ -1008,7 +1067,7 @@ export default function App() {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* SMART TV DATE CONTROLLER: Left/Right Buttons for Easy TV Remote Navigation */}
+                      {/* SMART TV DATE CONTROLLER */}
                       <div className="flex items-center bg-white border-2 border-slate-300 rounded-xl shadow-sm p-0.5">
                         <button 
                           onClick={() => shiftDate(-1)} 
